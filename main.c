@@ -16,204 +16,234 @@
 
 volatile int stop;
 
-reader_t re[READERS];
-writer_t wr;
-
-channel_t *shm_data;
-
 static void hdl(int sig) {
-	stop = 1;
+    stop = 1;
 }
 
-void *reader_thread(void *t) {
-	int ret = create_reader(shm_data, &re[(size_t) t]);
+int connect_channel(char *name, channel_t *chan) {
+    int shm_fd;
+    channel_hdr_t *shm_hdr;
+    //void *shm_data;
+    shm_fd = shm_open(name, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    if (shm_fd < 0) {
+        fprintf(stderr, "shm_open failed\n");
+        perror(NULL);
+        return -1;
+    }
 
-	if (ret != 0) {
+    struct stat sb;
+    fstat(shm_fd, &sb);
 
-		if (ret == -1)
-			printf("invalid reader_t pointer\n");
+    shm_hdr = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 
-		if (ret == -2)
-			printf("no reader slots avalible\n");
-		return 0;
-	}
+    if (shm_hdr == MAP_FAILED) {
+        perror("mmap failed\n");
+        return -1;
+    }
 
-	while (stop == 0) {
-		char *buf = (char*) reader_buffer_get(&re[(size_t) t]);
+    if (CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb.st_size) {
+        printf("error data\n");
+        return -1;
+    }
 
-		if (buf == NULL) {
-			printf("reader get NULL buffer\n");
-		} else {
+    // shm_data = (((char*)shm_hdr) + sizeof(channel_hdr_t));
 
-			char c = buf[0];
-			for (size_t i = 0; i < DATA_SIZE; i++) {
-				if (c != buf[i]) {
-					abort();
-				}
-			}
-		}
-	}
+    init_channel(shm_hdr, chan);
 
-	release_reader(&re[(size_t) t]);
-	return 0;
+    return 0;
 }
 
-void *reader_thread2(void *t) {
-
-	while (stop == 0) {
-		int ret = create_reader(shm_data, &re[(size_t) t]);
-
-		if (ret != 0) {
-			printf("unable to create reader\n");
-			abort();
-		}
-
-		for (size_t i = 0; i < READERS; i++) {
-			if (i != (size_t) t) {
-
-			}
-		}
-
-		release_reader(&re[(size_t) t]);
-	}
-
-	return 0;
-}
-
-void writer() {
-	create_writer((channel_t *) shm_data, &wr);
-
-	char c = 0;
-	while (stop == 0) {
-		char *buf = writer_buffer_get(&wr);
-
-		if (wr.index == ((channel_t *) shm_data)->reading[0]) {
-			abort();
-		}
-
-		memset(buf, c, DATA_SIZE);
-
-		writer_buffer_write(&wr);
-		c++;
-	}
-
-	release_writer(&wr);
+int disconnect_channel(channel_t *chan) {
+    size_t size = CHANNEL_DATA_SIZE(chan->hdr->size, chan->hdr->max_readers);
+    munmap(chan->hdr, size);
+    chan->reader_ids = NULL;
+    chan->reading = NULL;
+    free(chan->buffer);
+    chan->buffer = NULL;
+    chan->hdr = NULL;
+    return 0;
 }
 
 int main(int argc, char **argv) {
-	int size = 100;
-	int readers = 10;
+    int size = 100;
+    int readers = 10;
+    int sleep_time = 1;
 
-	int type; // 0 - channel, 1 - reader, 2 - writer
+    int type; // 0 - channel, 1 - reader, 2 - writer
 
-	char shm_name[200];
+    char shm_name[200];
 
-	int shm_fd;
-	channel_t *shm_data;
+    int shm_fd;
+    channel_hdr_t *shm_hdr;
+    void *shm_data;
 
-	opterr = 0;
+    channel_t channel;
+    reader_t re;
+    writer_t wr;
 
-	int c;
-	while ((c = getopt(argc, argv, "r:s:")) != -1) {
-		switch (c) {
-		case 'r':
-			readers = atoi(optarg);
-			break;
-		case 's':
-			size = atoi(optarg);
-			break;
-		case '?':
-			if (optopt == 'r' || optopt == 's')
-				fprintf(stderr, "Option -%c requires an argument.\n", optopt);
-			else if (isprint(optopt))
-				fprintf(stderr, "Unknown option `-%c'.\n", optopt);
-			else
-				fprintf(stderr, "Unknown option character `\\x%x'.\n", optopt);
-			return 1;
-		default:
-			abort();
-		}
-	}
+    opterr = 0;
 
-	if ((optind + 2) == argc) {
-		if (!strcmp("channel", argv[optind])) {
-			type = 0;
-		} else if (!strcmp("reader", argv[optind])) {
-			type = 1;
-		} else if (!strcmp("writer", argv[optind])) {
-			type = 2;
-		} else {
-			return 0;
-		}
+    int c;
+    while ((c = getopt(argc, argv, "r:s:n:")) != -1) {
+        switch (c) {
+        case 'r':
+            readers = atoi(optarg);
+            break;
+        case 's':
+            size = atoi(optarg);
+            break;
+        case 'n':
+            sleep_time = atoi(optarg);
+            break;
+        case '?':
+            if (optopt == 'r' || optopt == 's' || optopt == 'n')
+                fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+            else if (isprint(optopt))
+                fprintf(stderr, "Unknown option `-%c'.\n", optopt);
+            else
+                fprintf(stderr, "Unknown option character `\\x%x'.\n", optopt);
+            return 1;
+        default:
+            abort();
+        }
+    }
 
-		if (!strcpy(shm_name, argv[optind+1])) {
-			return 0;
-		}
-	} else {
-		printf("not enough arguments\n");
-		return 0;
-	}
+    if ((optind + 2) == argc) {
+        if (!strcmp("channel", argv[optind])) {
+            type = 0;
+        } else if (!strcmp("reader", argv[optind])) {
+            type = 1;
+        } else if (!strcmp("writer", argv[optind])) {
+            type = 2;
+        } else {
+            return 0;
+        }
 
-	stop = 0;
+        if (!strcpy(shm_name, argv[optind+1])) {
+            return 0;
+        }
+    } else {
+        printf("not enough arguments\n");
+        return 0;
+    }
 
-	signal(SIGINT, hdl);
+    stop = 0;
 
-	switch (type) {
-	case 0:
+    signal(SIGINT, hdl);
 
-		printf("creating channel [%s]\n", shm_name);
+    char wdata = 33;
 
-		shm_fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-		if (shm_fd < 0) {
-			fprintf(stderr, "shm_open failed\n");
-			perror(NULL);
-			return -1;
-		}
+    switch (type) {
+    case 0:
+        printf("creating channel [%s]\n", shm_name);
 
-		if (ftruncate(shm_fd, CHANNEL_DATA_SIZE(size, readers)) != 0) {
-			fprintf(stderr, "ftruncate failed\n");
-			shm_unlink(shm_name);
-			return -1;
-		}
+        shm_fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+        if (shm_fd < 0) {
+            fprintf(stderr, "shm_open failed\n");
+            perror(NULL);
+            return -1;
+        }
 
-		shm_data = mmap(NULL, CHANNEL_DATA_SIZE(size, readers), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        if (ftruncate(shm_fd, CHANNEL_DATA_SIZE(size, readers)) != 0) {
+            fprintf(stderr, "ftruncate failed\n");
+            shm_unlink(shm_name);
+            return -1;
+        }
 
-		if (shm_data == MAP_FAILED) {
-			fprintf(stderr, "mmap failed\n");
-			shm_unlink(shm_name);
-			return -1;
-		}
+        shm_hdr = mmap(NULL, CHANNEL_DATA_SIZE(size, readers), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 
-		init_channel(size, readers, shm_data);
+        if (shm_hdr == MAP_FAILED) {
+            fprintf(stderr, "mmap failed\n");
+            shm_unlink(shm_name);
+            return -1;
+        }
 
-		while (stop == 0) {
-			sleep(1);
-		}
+        init_channel_hdr(size, readers, shm_hdr);
 
-		munmap(shm_data, CHANNEL_DATA_SIZE(size, readers));
-		shm_unlink(shm_name);
-		break;
-	case 1:
-		break;
-	case 2:
-		break;
-	}
+        while (stop == 0) {
+            sleep(sleep_time);
+        }
 
+        munmap(shm_hdr, CHANNEL_DATA_SIZE(size, readers));
+        close(shm_fd);
+        shm_unlink(shm_name);
+        break;
+    case 1:
+        printf("creating reader on channel [%s]\n", shm_name);
+        if (connect_channel(shm_name, &channel) != 0) {
+            return -1;
+        }
 
+        int ret = create_reader(&channel, &re);
 
+        if (ret != 0) {
 
-	shm_data = malloc(CHANNEL_DATA_SIZE(DATA_SIZE, READERS));
+            if (ret == -1)
+                printf("invalid reader_t pointer\n");
 
-	if (shm_data == NULL) {
-		abort();
-	}
+            if (ret == -2)
+                printf("no reader slots avalible\n");
+            return 0;
+        }
 
-	init_channel(DATA_SIZE, READERS, shm_data);
+        while(stop == 0) {
+            char *buf = (char*) reader_buffer_get(&re);
 
+            if (buf == NULL) {
+                printf("reader get NULL buffer\n");
+                return -1;
+            }
+            printf("reading [%c]\n", *buf);
+            sleep(sleep_time);
+        }
 
-	free(shm_data);
+        release_reader(&re);
+        disconnect_channel(&channel);
+        break;
+    case 2:
+        printf("creating writer on channel [%s]\n", shm_name);
+        if (connect_channel(shm_name, &channel) != 0) {
+            printf("unable to open channel\n");
+            return -1;
+        }
 
+        ret = create_writer(&channel, &wr);
 
+        if (ret != 0) {
 
-	return 0;
+            if (ret == -1) {
+                printf("invalid writer_t pointer\n");
+            }
+
+            if (ret == -2) {
+                printf("no writers slots avalible\n");
+            }
+            return -1;
+        }
+
+        while(stop == 0) {
+            char *buf = (char*) writer_buffer_get(&wr);
+
+            if (buf == NULL) {
+                printf("writer get NULL buffer\n");
+                return -1;
+            }
+
+            memset(buf, wdata, wr.channel->hdr->size);
+
+            writer_buffer_write(&wr);
+
+            printf("writing [%c]\n", wdata);
+
+            wdata++;
+            sleep(sleep_time);
+        }
+
+        release_writer(&wr);
+        disconnect_channel(&channel);
+        break;
+    }
+
+    return 0;
 }
+

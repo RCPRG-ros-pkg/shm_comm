@@ -1,6 +1,5 @@
-#include "shm_comm.h"
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -10,6 +9,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
+
+#include "shm_comm.h"
 
 #define READERS 10
 #define DATA_SIZE 100
@@ -21,34 +22,52 @@ static void hdl(int sig) {
 }
 
 int connect_channel(char *name, channel_t *chan) {
-    int shm_fd;
+    int shm_hdr_fd;
+    int shm_data_fd;
     channel_hdr_t *shm_hdr;
-    //void *shm_data;
-    shm_fd = shm_open(name, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-    if (shm_fd < 0) {
+    void *shm_data;
+    char shm_name[128];
+
+    strcpy(shm_name, name);
+    strcat(shm_name, "_hdr");
+
+    shm_hdr_fd = shm_open(shm_name, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    if (shm_hdr_fd < 0) {
         fprintf(stderr, "shm_open failed\n");
         perror(NULL);
         return -1;
     }
 
     struct stat sb;
-    fstat(shm_fd, &sb);
+    fstat(shm_hdr_fd, &sb);
 
-    shm_hdr = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    shm_hdr = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_hdr_fd, 0);
 
     if (shm_hdr == MAP_FAILED) {
         perror("mmap failed\n");
         return -1;
     }
 
-    if (CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb.st_size) {
-        printf("error data\n");
+    strcpy(shm_name, name);
+    strcat(shm_name, "_data");
+
+    shm_data_fd = shm_open(shm_name, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    if (shm_data_fd < 0) {
+        fprintf(stderr, "shm_open failed\n");
+        perror(NULL);
         return -1;
     }
 
-    // shm_data = (((char*)shm_hdr) + sizeof(channel_hdr_t));
+    fstat(shm_data_fd, &sb);
 
-    init_channel(shm_hdr, chan);
+    shm_data = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_data_fd, 0);
+
+    if (shm_data == MAP_FAILED) {
+        perror("mmap failed\n");
+        return -1;
+    }
+
+    init_channel(shm_hdr, shm_data, chan);
 
     return 0;
 }
@@ -72,10 +91,10 @@ int main(int argc, char **argv) {
     int type; // 0 - channel, 1 - reader, 2 - writer
 
     char shm_name[200];
-
-    int shm_fd;
+    char shm_name_tmp[128];
+    int shm_hdr_fd;
+    int shm_data_fd;
     channel_hdr_t *shm_hdr;
-    void *shm_data;
 
     channel_t channel;
     reader_t re;
@@ -135,38 +154,65 @@ int main(int argc, char **argv) {
 
     switch (type) {
     case 0:
-        printf("creating channel [%s]\n", shm_name);
+        printf("creating channel [%s] size: %d readers: %d \n", shm_name, size, readers);
 
-        shm_fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-        if (shm_fd < 0) {
+        strcpy(shm_name_tmp, shm_name);
+        strcat(shm_name_tmp, "_hdr");
+
+        shm_hdr_fd = shm_open(shm_name_tmp, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+        if (shm_hdr_fd < 0) {
             fprintf(stderr, "shm_open failed\n");
             perror(NULL);
             return -1;
         }
 
-        if (ftruncate(shm_fd, CHANNEL_DATA_SIZE(size, readers)) != 0) {
+        if (ftruncate(shm_hdr_fd, CHANNEL_HDR_SIZE(size, readers)) != 0) {
             fprintf(stderr, "ftruncate failed\n");
-            shm_unlink(shm_name);
+            shm_unlink(shm_name_tmp);
             return -1;
         }
 
-        shm_hdr = mmap(NULL, CHANNEL_DATA_SIZE(size, readers), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        shm_hdr = mmap(NULL, CHANNEL_HDR_SIZE(size, readers), PROT_READ | PROT_WRITE, MAP_SHARED, shm_hdr_fd, 0);
 
         if (shm_hdr == MAP_FAILED) {
             fprintf(stderr, "mmap failed\n");
-            shm_unlink(shm_name);
+            shm_unlink(shm_name_tmp);
             return -1;
         }
 
-        init_channel_hdr(size, readers, shm_hdr);
+        strcpy(shm_name_tmp, shm_name);
+        strcat(shm_name_tmp, "_data");
+
+        shm_data_fd = shm_open(shm_name_tmp, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+        if (shm_data_fd < 0) {
+            fprintf(stderr, "shm_open failed\n");
+            perror(NULL);
+            return -1;
+        }
+
+        if (ftruncate(shm_data_fd, CHANNEL_DATA_SIZE(size, readers)) != 0) {
+            fprintf(stderr, "ftruncate failed\n");
+            shm_unlink(shm_name_tmp);
+            return -1;
+        }
+
+        init_channel_hdr(size, readers, SHM_SHARED, shm_hdr);
 
         while (stop == 0) {
             sleep(sleep_time);
         }
 
-        munmap(shm_hdr, CHANNEL_DATA_SIZE(size, readers));
-        close(shm_fd);
-        shm_unlink(shm_name);
+        munmap(shm_hdr, CHANNEL_HDR_SIZE(size, readers));
+        close(shm_hdr_fd);
+        close(shm_data_fd);
+
+        strcpy(shm_name_tmp, shm_name);
+        strcat(shm_name_tmp, "_data");
+        shm_unlink(shm_name_tmp);
+
+        strcpy(shm_name_tmp, shm_name);
+        strcat(shm_name_tmp, "_hdr");
+        shm_unlink(shm_name_tmp);
         break;
     case 1:
         printf("creating reader on channel [%s]\n", shm_name);
@@ -187,7 +233,7 @@ int main(int argc, char **argv) {
         }
 
         while(stop == 0) {
-            char *buf = (char*) reader_buffer_get(&re);
+            char *buf = (char*) reader_buffer_wait(&re);
 
             if (buf == NULL) {
                 printf("reader get NULL buffer\n");
@@ -222,7 +268,8 @@ int main(int argc, char **argv) {
         }
 
         while(stop == 0) {
-            char *buf = (char*) writer_buffer_get(&wr);
+            char *buf = NULL;
+            writer_buffer_get(&wr, (void**)&buf);
 
             if (buf == NULL) {
                 printf("writer get NULL buffer\n");
@@ -233,7 +280,7 @@ int main(int argc, char **argv) {
 
             writer_buffer_write(&wr);
 
-            printf("writing [%c]\n", wdata);
+            printf("writing [%c] readers: %d\n", wdata, wr.channel->hdr->readers);
 
             wdata++;
             sleep(sleep_time);

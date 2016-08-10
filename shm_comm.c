@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 int init_channel_hdr (int size, int readers, int flags, channel_hdr_t *shdata)
 {
@@ -257,43 +258,122 @@ void release_reader (reader_t* re)
   pthread_mutex_unlock (&re->channel->hdr->mtx);
 }
 
-void* reader_buffer_get (reader_t* re)
+int reader_buffer_get (reader_t* re, void** buf)
 {
   if (re == NULL)
   {
-    return NULL;
+    return SHM_INVAL;
   }
 
-  void* ret = NULL;
-
-  pthread_mutex_lock (&re->channel->hdr->mtx);
-  if (-1 < re->channel->hdr->latest && re->channel->hdr->latest < (re->channel->hdr->max_readers + 2))
+  if (buf == NULL)
   {
-    re->channel->reading[re->id] = re->channel->hdr->latest;
-    ret = re->channel->buffer[re->channel->reading[re->id]];
+    return SHM_INVAL;
+  }
+
+  int ret = 0;
+  int state = 0;
+
+  ret = pthread_mutex_lock (&re->channel->hdr->mtx);
+  if ((-1 < re->channel->hdr->latest) && (re->channel->hdr->latest < (re->channel->hdr->max_readers + 2)) && (ret == 0))
+  {
+    if (re->channel->reading[re->id] == re->channel->hdr->latest)
+    {
+      state = SHM_OLDDATA;
+    } else {
+      state = SHM_NEWDATA;
+      re->channel->reading[re->id] = re->channel->hdr->latest;
+    }
+    *buf = re->channel->buffer[re->channel->reading[re->id]];
+  } else {
+    state = SHM_FATAL;
   }
   pthread_mutex_unlock (&re->channel->hdr->mtx);
 
-  return ret;
+  if (ret != 0)
+  {
+    state = SHM_FATAL;
+  }
+
+  return state;
 }
 
-void* reader_buffer_wait (reader_t* re)
+int reader_buffer_wait (reader_t* re, void** buf)
 {
   if (re == NULL)
   {
-    return NULL;
+    return SHM_INVAL;
   }
 
-  pthread_mutex_lock (&re->channel->hdr->mtx);
-
-  while (re->channel->reading[re->id] == re->channel->hdr->latest)
+  if (buf == NULL)
   {
-    pthread_cond_wait (&re->channel->hdr->cond, &re->channel->hdr->mtx);
+    return SHM_INVAL;
   }
 
-  re->channel->reading[re->id] = re->channel->hdr->latest;
+  int ret = 0;
+
+  ret = pthread_mutex_lock (&re->channel->hdr->mtx);
+
+  while ((re->channel->reading[re->id] == re->channel->hdr->latest) && ret)
+  {
+    ret = pthread_cond_wait (&re->channel->hdr->cond, &re->channel->hdr->mtx);
+  }
+
+  if (ret == 0)
+  {
+    re->channel->reading[re->id] = re->channel->hdr->latest;
+  }
   pthread_mutex_unlock (&re->channel->hdr->mtx);
 
-  return re->channel->buffer[re->channel->reading[re->id]];
+  if (ret == 0)
+  {
+    *buf = re->channel->buffer[re->channel->reading[re->id]];
+    return 0;
+  } else {
+    return SHM_FATAL;
+  }
+}
+
+int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void** buf)
+{
+  if (re == NULL)
+  {
+    return SHM_INVAL;
+  }
+
+  if (buf == NULL)
+  {
+    return SHM_INVAL;
+  }
+
+  if (abstime == NULL)
+  {
+    return SHM_INVAL;
+  }
+
+  int ret = 0;
+
+  ret = pthread_mutex_lock (&re->channel->hdr->mtx);
+
+  while ((re->channel->reading[re->id] == re->channel->hdr->latest) && ret == 0)
+  {
+    ret = pthread_cond_timedwait (&re->channel->hdr->cond, &re->channel->hdr->mtx, abstime);
+  }
+
+  if (ret == 0)
+  {
+    re->channel->reading[re->id] = re->channel->hdr->latest;
+  }
+  pthread_mutex_unlock (&re->channel->hdr->mtx);
+
+
+  if (ret == 0)
+  {
+    *buf = re->channel->buffer[re->channel->reading[re->id]];
+    return 0;
+  } else if (ret == ETIMEDOUT) {
+    return SHM_TIMEOUT;
+  } else {
+    return SHM_FATAL;
+  }
 }
 

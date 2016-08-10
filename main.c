@@ -233,7 +233,8 @@ int main(int argc, char **argv) {
         }
 
         while(stop == 0) {
-            char *buf = (char*) reader_buffer_wait(&re);
+            char* buf = NULL;
+            reader_buffer_wait(&re, (void**)&buf);
 
             if (buf == NULL) {
                 printf("reader get NULL buffer\n");

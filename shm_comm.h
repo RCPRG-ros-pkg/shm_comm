@@ -12,6 +12,10 @@
 #define TRUE 1
 
 #define SHM_INVAL -1
+#define SHM_FATAL -2
+#define SHM_TIMEOUT -10
+#define SHM_NEWDATA 0
+#define SHM_OLDDATA 1
 
 #define SHM_SHARED 1
 
@@ -69,8 +73,10 @@ int create_reader(channel_t *, reader_t *);
 
 void release_reader(reader_t *);
 
-void *reader_buffer_get(reader_t *);
+int reader_buffer_get(reader_t* re, void** buf);
 
-void *reader_buffer_wait(reader_t *);
+int reader_buffer_wait(reader_t* re, void** buf);
+
+int reader_buffer_timedwait(reader_t* re, const struct timespec *abstime, void** buf);
 
 #endif // __SHM_COMM__

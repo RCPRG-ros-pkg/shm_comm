@@ -11,6 +11,7 @@
 #include <fcntl.h>
 
 #include "shm_comm.h"
+#include "shm_channel.h"
 
 #define READERS 10
 #define DATA_SIZE 100
@@ -154,65 +155,13 @@ int main(int argc, char **argv) {
 
     switch (type) {
     case 0:
-        printf("creating channel [%s] size: %d readers: %d \n", shm_name, size, readers);
-
-        strcpy(shm_name_tmp, shm_name);
-        strcat(shm_name_tmp, "_hdr");
-
-        shm_hdr_fd = shm_open(shm_name_tmp, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-        if (shm_hdr_fd < 0) {
-            fprintf(stderr, "shm_open failed\n");
-            perror(NULL);
-            return -1;
-        }
-
-        if (ftruncate(shm_hdr_fd, CHANNEL_HDR_SIZE(size, readers)) != 0) {
-            fprintf(stderr, "ftruncate failed\n");
-            shm_unlink(shm_name_tmp);
-            return -1;
-        }
-
-        shm_hdr = mmap(NULL, CHANNEL_HDR_SIZE(size, readers), PROT_READ | PROT_WRITE, MAP_SHARED, shm_hdr_fd, 0);
-
-        if (shm_hdr == MAP_FAILED) {
-            fprintf(stderr, "mmap failed\n");
-            shm_unlink(shm_name_tmp);
-            return -1;
-        }
-
-        strcpy(shm_name_tmp, shm_name);
-        strcat(shm_name_tmp, "_data");
-
-        shm_data_fd = shm_open(shm_name_tmp, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-        if (shm_data_fd < 0) {
-            fprintf(stderr, "shm_open failed\n");
-            perror(NULL);
-            return -1;
-        }
-
-        if (ftruncate(shm_data_fd, CHANNEL_DATA_SIZE(size, readers)) != 0) {
-            fprintf(stderr, "ftruncate failed\n");
-            shm_unlink(shm_name_tmp);
-            return -1;
-        }
-
-        init_channel_hdr(size, readers, SHM_SHARED, shm_hdr);
+		shm_create_channel(shm_name, size, readers);
 
         while (stop == 0) {
             sleep(sleep_time);
         }
 
-        munmap(shm_hdr, CHANNEL_HDR_SIZE(size, readers));
-        close(shm_hdr_fd);
-        close(shm_data_fd);
-
-        strcpy(shm_name_tmp, shm_name);
-        strcat(shm_name_tmp, "_data");
-        shm_unlink(shm_name_tmp);
-
-        strcpy(shm_name_tmp, shm_name);
-        strcat(shm_name_tmp, "_hdr");
-        shm_unlink(shm_name_tmp);
+        shm_remove_channel(shm_name);
         break;
     case 1:
         printf("creating reader on channel [%s]\n", shm_name);

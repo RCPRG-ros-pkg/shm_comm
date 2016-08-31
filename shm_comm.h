@@ -49,6 +49,12 @@ typedef struct {
     channel_t *channel; //! pointer to corresponding channel structure
 } reader_t;
 
+typedef struct {
+	channel_t channel;
+	int shm_hdr_fd;
+	int shm_data_fd;
+} shm_channel_t;
+
 int init_channel_hdr(int, int, int flags, channel_hdr_t *);
 
 /*!

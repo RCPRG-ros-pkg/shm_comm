@@ -22,6 +22,8 @@
 #define CHANNEL_HDR_SIZE(S, R) (sizeof(channel_hdr_t) + (R) * sizeof(int) + (R) * sizeof(int))
 #define CHANNEL_DATA_SIZE(S, R) (((R) + 2) * (S))
 
+#define GET_BUFFER(C, I) (((char *) (C)->buffer) + (I) * (C)->hdr->size)
+
 typedef struct {
 	pthread_cond_t cond;
 	pthread_mutex_t mtx;
@@ -35,7 +37,7 @@ typedef struct {
     channel_hdr_t *hdr;
     int *reader_ids; //! contain information which reader ids are in use
     int *reading; //! index to currently used buffers
-    char **buffer; //! data buffers (readers + 2)
+    char *buffer; //! data buffer ptr
 } channel_t;
 
 typedef struct {
@@ -65,7 +67,7 @@ int init_channel_hdr(int, int, int flags, channel_hdr_t *);
  * @param[out] channel pointer to output channel_t structure
  *
  */
-int init_channel(channel_hdr_t *hdr, const void *data, channel_t *channel);
+int init_channel(channel_hdr_t *hdr, void *data, channel_t *channel);
 
 int create_writer(channel_t *, writer_t *);
 

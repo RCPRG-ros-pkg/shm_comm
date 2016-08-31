@@ -48,13 +48,13 @@ int init_channel_hdr (int size, int readers, int flags, channel_hdr_t *shdata)
   for (size_t i = 0; i < readers; i++)
   {
     reader_ids[i] = 0;
-    reading[i] = 0;
+    reading[i] = -1;
   }
 
   return 0;
 }
 
-int init_channel (channel_hdr_t* hdr, const void* data, channel_t* chan)
+int init_channel (channel_hdr_t* hdr, void* data, channel_t* chan)
 {
   if (hdr == NULL)
   {
@@ -74,7 +74,8 @@ int init_channel (channel_hdr_t* hdr, const void* data, channel_t* chan)
   chan->hdr = hdr;
   chan->reader_ids = (int *) ((char*) hdr + sizeof(channel_hdr_t));
   chan->reading = (int *) ((char *) hdr + sizeof(channel_hdr_t) + hdr->max_readers * sizeof(int));
-  chan->buffer = malloc ((hdr->max_readers + 2) * sizeof(char*));
+  chan->buffer = data;
+  /*malloc ((hdr->max_readers + 2) * sizeof(char*));
   if (chan->buffer == NULL)
   {
     return -1;
@@ -83,7 +84,7 @@ int init_channel (channel_hdr_t* hdr, const void* data, channel_t* chan)
   for (size_t i = 0; i < (hdr->max_readers + 2); i++)
   {
     chan->buffer[i] = ((char *) data) + hdr->max_readers * sizeof(int) + i * hdr->size;
-  }
+  }*/
   return 0;
 }
 
@@ -143,11 +144,17 @@ int writer_buffer_get (writer_t* wr, void** buf)
     wr->inuse[i] = FALSE;
   }
 
-  wr->inuse[wr->channel->hdr->latest] = TRUE;
+  if (wr->channel->hdr->latest >= 0)
+  {
+    wr->inuse[wr->channel->hdr->latest] = TRUE;
+  }
 
   for (size_t i = 0; i < wr->channel->hdr->max_readers; i++)
   {
-    wr->inuse[wr->channel->reading[i]] = TRUE;
+    if (wr->channel->reading[i] >= 0)
+    {
+      wr->inuse[wr->channel->reading[i]] = TRUE;
+    }
   }
 
   wr->index = -1;
@@ -166,7 +173,7 @@ int writer_buffer_get (writer_t* wr, void** buf)
   }
   else
   {
-    *buf = wr->channel->buffer[wr->index];
+    *buf = GET_BUFFER(wr->channel, wr->index);
     return 0;
   }
 }
@@ -283,7 +290,7 @@ int reader_buffer_get (reader_t* re, void** buf)
       state = SHM_NEWDATA;
       re->channel->reading[re->id] = re->channel->hdr->latest;
     }
-    *buf = re->channel->buffer[re->channel->reading[re->id]];
+    *buf = GET_BUFFER(re->channel, re->channel->reading[re->id]);
   } else {
     state = SHM_FATAL;
   }
@@ -313,7 +320,12 @@ int reader_buffer_wait (reader_t* re, void** buf)
 
   ret = pthread_mutex_lock (&re->channel->hdr->mtx);
 
-  while ((re->channel->reading[re->id] == re->channel->hdr->latest) && ret)
+  if (ret != 0)
+  {
+    return SHM_FATAL;
+  }
+
+  while ((re->channel->reading[re->id] == re->channel->hdr->latest) && (ret == 0))
   {
     ret = pthread_cond_wait (&re->channel->hdr->cond, &re->channel->hdr->mtx);
   }
@@ -326,7 +338,7 @@ int reader_buffer_wait (reader_t* re, void** buf)
 
   if (ret == 0)
   {
-    *buf = re->channel->buffer[re->channel->reading[re->id]];
+    *buf = GET_BUFFER(re->channel, re->channel->reading[re->id]);
     return 0;
   } else {
     return SHM_FATAL;
@@ -354,7 +366,7 @@ int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void*
 
   ret = pthread_mutex_lock (&re->channel->hdr->mtx);
 
-  while ((re->channel->reading[re->id] == re->channel->hdr->latest) && ret == 0)
+  while ((re->channel->reading[re->id] == re->channel->hdr->latest) && (ret == 0))
   {
     ret = pthread_cond_timedwait (&re->channel->hdr->cond, &re->channel->hdr->mtx, abstime);
   }
@@ -368,7 +380,7 @@ int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void*
 
   if (ret == 0)
   {
-    *buf = re->channel->buffer[re->channel->reading[re->id]];
+    *buf = GET_BUFFER(re->channel, re->channel->reading[re->id]);
     return 0;
   } else if (ret == ETIMEDOUT) {
     return SHM_TIMEOUT;

@@ -1,4 +1,4 @@
-#include "shm_channel.h"
+#include "shm_comm/shm_channel.h"
 
 #include "shm_comm.h"
 
@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-int shm_create_channel (char name[NAME_LEN], int size, int readers)
+int shm_create_channel (const char name[NAME_LEN], int size, int readers)
 {
   if (size < 1)
   {
@@ -99,7 +99,7 @@ int shm_create_channel (char name[NAME_LEN], int size, int readers)
   return 0;
 }
 
-int shm_remove_channel (char name[NAME_LEN])
+int shm_remove_channel (const char name[NAME_LEN])
 {
   char shm_name_tmp[NAME_LEN + 5];
 
@@ -122,7 +122,7 @@ struct shm_writer
   writer_t writer;
 };
 
-shm_writer_t *shm_connect_writer (char name[NAME_LEN])
+shm_writer_t *shm_connect_writer (const char name[NAME_LEN])
 {
   shm_writer_t *ret = malloc (sizeof(shm_writer_t));
 
@@ -246,7 +246,7 @@ struct shm_reader
   reader_t reader;
 };
 
-shm_reader_t *shm_connect_reader (char name[NAME_LEN])
+shm_reader_t *shm_connect_reader (const char name[NAME_LEN])
 {
   shm_reader_t *ret = malloc (sizeof(shm_reader_t));
 

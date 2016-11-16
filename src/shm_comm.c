@@ -103,7 +103,7 @@ int init_channel (channel_hdr_t* hdr, void* data, channel_t* chan)
   }
 
   chan->hdr = hdr;
-  chan->reader_ids = (int *) ((char*) hdr + sizeof(channel_hdr_t));
+  chan->reader_ids = (pthread_mutex_t *) ((char*) hdr + sizeof(channel_hdr_t));
   chan->reading = (int *) ((char *) hdr + sizeof(channel_hdr_t) + hdr->max_readers * sizeof(pthread_mutex_t));
   chan->buffer = data;
   /*malloc ((hdr->max_readers + 2) * sizeof(char*));

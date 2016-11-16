@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <getopt.h>
 
-#include "shm_channel.h"
+#include "shm_comm/shm_channel.h"
 
 #define READERS 10
 #define DATA_SIZE 100

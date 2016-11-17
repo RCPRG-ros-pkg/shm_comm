@@ -34,6 +34,7 @@
  */
 
 #include <pthread.h>
+#include <shm_comm/shm_err.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,13 +42,18 @@ extern "C" {
 
 #define FALSE 0
 #define TRUE 1
-
+/*
 #define SHM_INVAL -1
 #define SHM_FATAL -2
+#define SHM_NO_CHANNEL -3
+#define SHM_CHANNEL_INCONSISTENT -4
+#define SHM_ERR_INIT -5
+#define SHM_ERR_CREATE -6
+
 #define SHM_TIMEOUT -10
 #define SHM_NEWDATA 0
 #define SHM_OLDDATA 1
-
+*/
 #define SHM_SHARED 1
 
 #define CHANNEL_HDR_SIZE(S, R) (sizeof(channel_hdr_t) + (R) * sizeof(int) + (R) * sizeof(int))

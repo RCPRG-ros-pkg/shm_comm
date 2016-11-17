@@ -53,6 +53,7 @@ int init_channel_hdr (int size, int readers, int flags, channel_hdr_t *shdata)
   if ((flags & SHM_SHARED) == SHM_SHARED)
   {
     pthread_mutexattr_setpshared (&mutex_attr, PTHREAD_PROCESS_SHARED);
+    pthread_mutexattr_setrobust (&mutex_attr, PTHREAD_MUTEX_ROBUST);
   }
   pthread_mutex_init (&shdata->mtx, &mutex_attr);
 
@@ -250,12 +251,10 @@ int create_reader (channel_t* chan, reader_t* reader)
 
   pthread_mutex_lock (&chan->hdr->mtx);
 
-  if (chan->hdr->readers < chan->hdr->max_readers)
-  {
-    reader->channel = chan;
+  reader->channel = chan;
 
-    for (int i = 0; i < chan->hdr->max_readers; i++)
-    {
+  for (int i = 0; i < chan->hdr->max_readers; i++)
+  {
       int lock_status = pthread_mutex_trylock(&chan->reader_ids[i]);
       int acquired = FALSE;
       switch (lock_status)
@@ -313,16 +312,11 @@ int create_reader (channel_t* chan, reader_t* reader)
         chan->hdr->readers++;
         break;
       }
-    }
-
-    if (reader->id < 0 && err == 0)
-    {
-      err = -3;
-    }
   }
-  else
+
+  if (reader->id < 0 && err == 0)
   {
-    err = -2;
+    err = -3;
   }
 
   pthread_mutex_unlock (&chan->hdr->mtx);
@@ -362,7 +356,9 @@ int reader_buffer_get (reader_t* re, void** buf)
   int state = 0;
 
   ret = pthread_mutex_lock (&re->channel->hdr->mtx);
-  if ((-1 < re->channel->hdr->latest) && (re->channel->hdr->latest < (re->channel->hdr->max_readers + 2)) && (ret == 0))
+  if ((re->channel->hdr->latest == -1) && (ret == 0)) {
+    state = SHM_NODATA;
+  } else if ((-1 < re->channel->hdr->latest) && (re->channel->hdr->latest < (re->channel->hdr->max_readers + 2)) && (ret == 0))
   {
     if (re->channel->reading[re->id] == re->channel->hdr->latest)
     {

@@ -11,6 +11,9 @@
 #define READERS 10
 #define DATA_SIZE 100
 
+#define TRUE 1
+#define FALSE 0
+
 volatile int stop;
 
 static void hdl(int sig) {
@@ -84,7 +87,7 @@ int main(int argc, char **argv) {
 
     switch (type) {
     case 0:
-		shm_create_channel(shm_name, size, readers);
+		shm_create_channel(shm_name, size, readers, FALSE);
 
         while (stop == 0) {
             sleep(sleep_time);
@@ -95,7 +98,7 @@ int main(int argc, char **argv) {
     case 1:
         printf("creating reader on channel [%s]\n", shm_name);
 
-        re = shm_connect_reader(shm_name);
+        shm_connect_reader(shm_name, &re);
 
         if (re == NULL) {
             return -1;
@@ -118,7 +121,7 @@ int main(int argc, char **argv) {
     case 2:
         printf("creating writer on channel [%s]\n", shm_name);
 
-        wr = shm_connect_writer(shm_name);
+        shm_connect_writer(shm_name, &wr);
 
         if (wr == NULL) {
             return -1;

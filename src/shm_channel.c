@@ -10,8 +10,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <errno.h>
 
-int shm_create_channel (const char name[NAME_LEN], int size, int readers)
+int shm_create_channel (const char name[NAME_LEN], int size, int readers, int force)
 {
   if (size < 1)
   {
@@ -23,22 +24,29 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers)
     return SHM_INVAL;
   }
 
-  char name_hdr[NAME_LEN + 5];
+  char name_hdr[NAME_LEN + 6];
 
   strcpy (name_hdr, name);
   strcat (name_hdr, "_hdr");
 
-  int shm_hdr_fd = shm_open (name_hdr, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  int shm_hdr_fd;
+  if (force) {
+    shm_hdr_fd = shm_open (name_hdr, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  }
+  else {
+    shm_hdr_fd = shm_open (name_hdr, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  }
+
   if (shm_hdr_fd < 0)
   {
-    return -1;
+    return -2;
   }
 
   if (ftruncate (shm_hdr_fd, CHANNEL_HDR_SIZE(size, readers)) != 0)
   {
     close (shm_hdr_fd);
     shm_unlink (name_hdr);
-    return -1;
+    return -3;
   }
 
   void *shm_hdr = mmap (NULL, CHANNEL_HDR_SIZE(size, readers), PROT_READ | PROT_WRITE, MAP_SHARED, shm_hdr_fd, 0);
@@ -47,20 +55,28 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers)
   {
     close (shm_hdr_fd);
     shm_unlink (name_hdr);
-    return -1;
+    return -4;
   }
 
-  char name_data[NAME_LEN + 5];
+  char name_data[NAME_LEN + 6];
   strcpy (name_data, name);
   strcat (name_data, "_data");
 
-  int shm_data_fd = shm_open (name_data, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  int shm_data_fd;
+
+  if (force) {
+    shm_data_fd = shm_open (name_data, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  }
+  else {
+    shm_data_fd = shm_open (name_data, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  }
+
   if (shm_data_fd < 0)
   {
     munmap (shm_hdr, CHANNEL_HDR_SIZE(size, readers));
     close (shm_hdr_fd);
     shm_unlink (name_hdr);
-    return -1;
+    return -5;
   }
 
   if (ftruncate (shm_data_fd, CHANNEL_DATA_SIZE(size, readers)) != 0)
@@ -71,7 +87,7 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers)
 
     close (shm_data_fd);
     shm_unlink (name_data);
-    return -1;
+    return -6;
   }
 
   void *shm_data = mmap (NULL, CHANNEL_DATA_SIZE(size, readers), PROT_READ | PROT_WRITE, MAP_SHARED, shm_data_fd, 0);
@@ -84,7 +100,7 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers)
 
     close (shm_data_fd);
     shm_unlink (name_data);
-    return -1;
+    return -7;
   }
 
   memset (shm_data, 0, CHANNEL_DATA_SIZE(size, readers));
@@ -101,7 +117,7 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers)
 
 int shm_remove_channel (const char name[NAME_LEN])
 {
-  char shm_name_tmp[NAME_LEN + 5];
+  char shm_name_tmp[NAME_LEN + 6];
 
   strcpy (shm_name_tmp, name);
   strcat (shm_name_tmp, "_data");
@@ -122,70 +138,103 @@ struct shm_writer
   writer_t writer;
 };
 
-shm_writer_t *shm_connect_writer (const char name[NAME_LEN])
+int shm_connect_writer (const char name[NAME_LEN], shm_writer_t **ret)
 {
-  shm_writer_t *ret = malloc (sizeof(shm_writer_t));
+  *ret = malloc (sizeof(shm_writer_t));
 
-  if (ret == NULL)
+  if ((*ret) == NULL)
   {
-    return NULL;
+    return SHM_FATAL;
   }
 
   channel_hdr_t *shm_hdr;
   void *shm_data;
 
-  char name_hdr[NAME_LEN + 5];
+  char name_hdr[NAME_LEN + 6];
   strcpy (name_hdr, name);
   strcat (name_hdr, "_hdr");
 
-  char name_data[NAME_LEN + 5];
+  char name_data[NAME_LEN + 6];
   strcpy (name_data, name);
   strcat (name_data, "_data");
 
-  ret->hdr_fd = shm_open (name_hdr, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-  if (ret->hdr_fd < 0)
+  (*ret)->hdr_fd = shm_open (name_hdr, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  if ((*ret)->hdr_fd < 0)
   {
-    free (ret);
-    return NULL;
+    free (*ret);
+    return SHM_NO_CHANNEL;
   }
 
-  ret->data_fd = shm_open (name_data, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-  if (ret->data_fd < 0)
+  (*ret)->data_fd = shm_open (name_data, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  if ((*ret)->data_fd < 0)
   {
-    close (ret->hdr_fd);
-    free (ret);
-    return NULL;
+    close ((*ret)->hdr_fd);
+    free (*ret);
+    return SHM_NO_CHANNEL;
   }
 
   struct stat sb;
-  fstat (ret->hdr_fd, &sb);
+  fstat ((*ret)->hdr_fd, &sb);
 
-  shm_hdr = mmap (NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, ret->hdr_fd, 0);
+  shm_hdr = mmap (NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, (*ret)->hdr_fd, 0);
 
   if (shm_hdr == MAP_FAILED)
   {
-    close (ret->hdr_fd);
-    close (ret->data_fd);
-    free (ret);
-    return NULL;
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_FATAL;
+  }
+
+  // check header channel consistency
+  if (CHANNEL_HDR_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb.st_size) {
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_CHANNEL_INCONSISTENT;
+  }
+
+  // check data channel consistency
+  struct stat sb_data;
+  fstat ((*ret)->data_fd, &sb_data);
+  if (CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb_data.st_size) {
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_CHANNEL_INCONSISTENT;
   }
 
   shm_data = mmap (NULL, CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers), PROT_READ | PROT_WRITE, MAP_SHARED,
-      ret->data_fd, 0);
+      (*ret)->data_fd, 0);
 
   if (shm_data == MAP_FAILED)
   {
     munmap (shm_hdr, sb.st_size);
-    close (ret->hdr_fd);
-    close (ret->data_fd);
-    free (ret);
-    return NULL;
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_FATAL;
   }
 
-  init_channel (shm_hdr, shm_data, &ret->channel);
-  create_writer (&ret->channel, &ret->writer);
+  if (init_channel (shm_hdr, shm_data, &(*ret)->channel) != 0) {
+    munmap (shm_data, CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers));
+    munmap (shm_hdr, sb.st_size);
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_ERR_INIT;
+  }
 
-  return ret;
+  if (create_writer (&(*ret)->channel, &(*ret)->writer) != 0) {
+    munmap (shm_data, CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers));
+    munmap (shm_hdr, sb.st_size);
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_ERR_CREATE;
+  }
+
+  return 0;
 }
 
 int shm_release_writer (shm_writer_t *writer)
@@ -246,70 +295,105 @@ struct shm_reader
   reader_t reader;
 };
 
-shm_reader_t *shm_connect_reader (const char name[NAME_LEN])
+int shm_connect_reader (const char name[NAME_LEN], shm_reader_t **ret)
 {
-  shm_reader_t *ret = malloc (sizeof(shm_reader_t));
+  *ret = malloc (sizeof(shm_reader_t));
 
-  if (ret == NULL)
+  if (*ret == NULL)
   {
-    return NULL;
+    return SHM_FATAL;
   }
 
   channel_hdr_t *shm_hdr;
   void *shm_data;
 
-  char name_hdr[NAME_LEN + 5];
+  char name_hdr[NAME_LEN + 6];
   strcpy (name_hdr, name);
   strcat (name_hdr, "_hdr");
 
-  char name_data[NAME_LEN + 5];
+  char name_data[NAME_LEN + 6];
   strcpy (name_data, name);
   strcat (name_data, "_data");
 
-  ret->hdr_fd = shm_open (name_hdr, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-  if (ret->hdr_fd < 0)
+  (*ret)->hdr_fd = shm_open (name_hdr, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  if ((*ret)->hdr_fd < 0)
   {
-    free (ret);
-    return NULL;
+    printf("shm_connect_reader 1: %d\n", errno);
+    free (*ret);
+    return SHM_NO_CHANNEL;
   }
 
-  ret->data_fd = shm_open (name_data, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-  if (ret->data_fd < 0)
+  (*ret)->data_fd = shm_open (name_data, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+  if ((*ret)->data_fd < 0)
   {
-    close (ret->hdr_fd);
-    free (ret);
-    return NULL;
+    printf("shm_connect_reader 2: %d\n", errno);
+    close ((*ret)->hdr_fd);
+    free (*ret);
+    return SHM_NO_CHANNEL;
   }
 
   struct stat sb;
-  fstat (ret->hdr_fd, &sb);
+  fstat ((*ret)->hdr_fd, &sb);
 
-  shm_hdr = mmap (NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, ret->hdr_fd, 0);
+  shm_hdr = mmap (NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, (*ret)->hdr_fd, 0);
 
   if (shm_hdr == MAP_FAILED)
   {
-    close (ret->hdr_fd);
-    close (ret->data_fd);
-    free (ret);
-    return NULL;
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_FATAL;
+  }
+
+  // check header channel consistency
+  if (CHANNEL_HDR_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb.st_size) {
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_CHANNEL_INCONSISTENT;
+  }
+
+  // check data channel consistency
+  struct stat sb_data;
+  fstat ((*ret)->data_fd, &sb_data);
+  if (CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb_data.st_size) {
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_CHANNEL_INCONSISTENT;
   }
 
   shm_data = mmap (NULL, CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers), PROT_READ, MAP_SHARED,
-      ret->data_fd, 0);
+      (*ret)->data_fd, 0);
 
   if (shm_data == MAP_FAILED)
   {
     munmap (shm_hdr, sb.st_size);
-    close (ret->hdr_fd);
-    close (ret->data_fd);
-    free (ret);
-    return NULL;
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_FATAL;
   }
 
-  init_channel (shm_hdr, shm_data, &ret->channel);
-  create_reader (&ret->channel, &ret->reader);
+  if (init_channel (shm_hdr, shm_data, &(*ret)->channel) != 0) {
+    munmap (shm_data, CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers));
+    munmap (shm_hdr, sb.st_size);
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_ERR_INIT;
+  }
 
-  return ret;
+  if (create_reader (&(*ret)->channel, &(*ret)->reader) != 0) {
+    munmap (shm_data, CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers));
+    munmap (shm_hdr, sb.st_size);
+    close ((*ret)->hdr_fd);
+    close ((*ret)->data_fd);
+    free (*ret);
+    return SHM_ERR_CREATE;
+  }
+
+  return 0;
 }
 
 int shm_release_reader (shm_reader_t *reader)

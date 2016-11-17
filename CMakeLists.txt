@@ -15,7 +15,7 @@ include_directories(include)
 add_library(shm_comm src/shm_comm.c src/shm_channel.c)
 add_executable(shm_comm_example examples/main.c src/shm_comm.c src/shm_channel.c)
 
-target_link_libraries(shm_comm ${catkin_LIBRARIES} -lpthread -lrt)
-target_link_libraries(shm_comm_example ${catkin_LIBRARIES} -lpthread -lrt)
+target_link_libraries(shm_comm ${catkin_LIBRARIES} pthread rt)
+target_link_libraries(shm_comm_example ${catkin_LIBRARIES} pthread rt)
 
 

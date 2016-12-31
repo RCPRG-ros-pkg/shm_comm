@@ -31,6 +31,89 @@
 #include <string.h>
 #include <errno.h>
 
+int lock_robust_mutex(pthread_mutex_t *mutex) {
+  // lock hdr mutex in the safe way
+  int lock_status = pthread_mutex_lock (mutex);
+  int acquired = FALSE;
+  int err = -18;
+  switch (lock_status)
+  {
+  case 0:
+    acquired = TRUE;
+    break;
+  case EINVAL:
+    err = -12;
+    break;
+  case EAGAIN:
+    err = -13;
+    break;
+  case EDEADLK:
+    err = -14;
+    break;
+  case EOWNERDEAD:
+    // the reader that acquired the mutex is dead
+    //TODO: make the state consistent
+
+    // recover the mutex
+    if (pthread_mutex_consistent(mutex) == EINVAL) {
+      err = -15;
+      break;
+    }
+    acquired = TRUE;
+    break;
+  default:
+    // other error
+    err = -18;
+    break;
+  }
+
+  return acquired ? 0 : err;
+}
+
+int trylock_robust_mutex(pthread_mutex_t *mutex) {
+  // lock hdr mutex in the safe way
+  int lock_status = pthread_mutex_trylock (mutex);
+  int acquired = FALSE;
+  int err = -18;
+  switch (lock_status)
+  {
+  case 0:
+    acquired = TRUE;
+    break;
+  case EBUSY:
+    // do nothing:
+    // other reader acquired the mutex
+    // the loop should be continued
+    break;
+  case EINVAL:
+    err = -12;
+    break;
+  case EAGAIN:
+    err = -13;
+    break;
+  case EDEADLK:
+    err = -14;
+    break;
+  case EOWNERDEAD:
+    // the reader that acquired the mutex is dead
+    //TODO: make the state consistent
+
+    // recover the mutex
+    if (pthread_mutex_consistent(mutex) == EINVAL) {
+      err = -15;
+      break;
+    }
+    acquired = TRUE;
+    break;
+  default:
+    // other error
+    err = -18;
+    break;
+  }
+
+  return acquired ? 0 : err;
+}
+
 int init_channel_hdr (int size, int readers, int flags, channel_hdr_t *shdata)
 {
   if (shdata == NULL) {
@@ -222,7 +305,7 @@ int writer_buffer_write (writer_t* wr)
     return -1;
   }
 
-  pthread_mutex_lock (&wr->channel->hdr->mtx);
+  lock_robust_mutex(&wr->channel->hdr->mtx);
   wr->channel->hdr->latest = wr->index;
   pthread_cond_broadcast (&wr->channel->hdr->cond);
   pthread_mutex_unlock (&wr->channel->hdr->mtx);
@@ -244,12 +327,15 @@ int create_reader (channel_t* chan, reader_t* reader)
     return SHM_INVAL;
   }
   // cheack reader slot avalibility
-
   int err = 0;
 
   reader->id = -1;
 
-  pthread_mutex_lock (&chan->hdr->mtx);
+  // lock hdr mutex in the safe way
+  int ret = lock_robust_mutex(&chan->hdr->mtx);
+  if (ret != 0) {
+    return ret;
+  }
 
   reader->channel = chan;
 
@@ -285,14 +371,6 @@ int create_reader (channel_t* chan, reader_t* reader)
           err = -8;
           break;
         }
-        if (pthread_mutex_unlock(&chan->reader_ids[i]) != 0) {
-          err = -9;
-          break;
-        }
-        if (pthread_mutex_trylock(&chan->reader_ids[i]) != 0) {
-          err = -10;
-          break;
-        }
         chan->hdr->readers--;
         acquired = TRUE;
         break;
@@ -318,7 +396,6 @@ int create_reader (channel_t* chan, reader_t* reader)
   {
     err = -3;
   }
-
   pthread_mutex_unlock (&chan->hdr->mtx);
 
   return err;
@@ -331,7 +408,9 @@ void release_reader (reader_t* re)
     return;
   }
 
-  pthread_mutex_lock (&re->channel->hdr->mtx);
+  pthread_mutex_unlock (&re->channel->hdr->mtx);
+
+  int ret = lock_robust_mutex(&re->channel->hdr->mtx);
 
   pthread_mutex_unlock(&re->channel->reader_ids[re->id]);
   re->channel->hdr->readers--;
@@ -355,7 +434,8 @@ int reader_buffer_get (reader_t* re, void** buf)
   int ret = 0;
   int state = 0;
 
-  ret = pthread_mutex_lock (&re->channel->hdr->mtx);
+  ret = lock_robust_mutex(&re->channel->hdr->mtx);
+
   if ((re->channel->hdr->latest == -1) && (ret == 0)) {
     state = SHM_NODATA;
   } else if ((-1 < re->channel->hdr->latest) && (re->channel->hdr->latest < (re->channel->hdr->max_readers + 2)) && (ret == 0))
@@ -395,16 +475,16 @@ int reader_buffer_wait (reader_t* re, void** buf)
 
   int ret = 0;
 
-  ret = pthread_mutex_lock (&re->channel->hdr->mtx);
+  ret = lock_robust_mutex(&re->channel->hdr->mtx);
 
-  if (ret != 0)
-  {
-    return SHM_FATAL;
-  }
-
-  while ((re->channel->reading[re->id] == re->channel->hdr->latest) && (ret == 0))
+  while ((re->id != -1) && (re->channel->reading[re->id] == re->channel->hdr->latest) && (ret == 0))
   {
     ret = pthread_cond_wait (&re->channel->hdr->cond, &re->channel->hdr->mtx);
+  }
+
+  if (re->id == -1) {
+    pthread_mutex_unlock (&re->channel->hdr->mtx);
+    return SHM_FATAL;
   }
 
   if (ret == 0)
@@ -441,11 +521,16 @@ int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void*
 
   int ret = 0;
 
-  ret = pthread_mutex_lock (&re->channel->hdr->mtx);
+  ret = lock_robust_mutex(&re->channel->hdr->mtx);
 
-  while ((re->channel->reading[re->id] == re->channel->hdr->latest) && (ret == 0))
+  while ((re->id != -1) && (re->channel->reading[re->id] == re->channel->hdr->latest) && (ret == 0))
   {
     ret = pthread_cond_timedwait (&re->channel->hdr->cond, &re->channel->hdr->mtx, abstime);
+  }
+
+  if (re->id == -1) {
+    pthread_mutex_unlock (&re->channel->hdr->mtx);
+    return SHM_FATAL;
   }
 
   if (ret == 0)

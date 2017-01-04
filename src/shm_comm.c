@@ -31,7 +31,8 @@
 #include <string.h>
 #include <errno.h>
 
-#define PRINT(x) printf(x)
+//#define PRINT(x) printf(x)
+#define PRINT(x)
 
 int robust_mutex_lock(pthread_mutex_t *mutex) {
   // lock hdr mutex in the safe way
@@ -341,12 +342,12 @@ int writer_buffer_write (writer_t* wr)
     return -1;
   }
 
-  PRINT("writer_buffer_write: before lock\n");
+  PRINT("writer_buffer_write before lock\n");
   robust_mutex_lock(&wr->channel->hdr->mtx);
-  PRINT("writer_buffer_write: lock\n");
+  PRINT("writer_buffer_write lock\n");
   wr->channel->hdr->latest = wr->index;
   pthread_cond_broadcast (&wr->channel->hdr->cond);
-  PRINT("writer_buffer_write: unlock\n");
+  PRINT("writer_buffer_write unlock\n");
   pthread_mutex_unlock (&wr->channel->hdr->mtx);
 
   wr->index = -1;
@@ -370,8 +371,9 @@ int create_reader (channel_t* chan, reader_t* reader)
 
   reader->id = -1;
 
-  PRINT("create_reader: before lock\n");
+  PRINT("create_reader before lock\n");
   // lock hdr mutex in the safe way
+/*
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   ++ts.tv_sec;
@@ -379,13 +381,14 @@ int create_reader (channel_t* chan, reader_t* reader)
   int ret = robust_mutex_timedlock(&chan->hdr->mtx, &ts);
   if (ret == ETIMEDOUT) {
     // could not lock mutef for timeout time, so there is something wrong with it
-    PRINT("create_reader: unlock (stalled)\n");
+    PRINT("create_reader unlock (stalled)\n");
     int uret = pthread_mutex_unlock (&chan->hdr->mtx);
-    printf("unlock result: %d\n", uret);
+    printf("unlock result %d\n", uret);
     ret = robust_mutex_lock(&chan->hdr->mtx);
   }
-//  int ret = robust_mutex_lock(&chan->hdr->mtx);
-  PRINT("create_reader: lock\n");
+*/
+  int ret = robust_mutex_lock(&chan->hdr->mtx);
+  PRINT("create_reader lock\n");
   if (ret != 0) {
     return ret;
   }
@@ -449,7 +452,7 @@ int create_reader (channel_t* chan, reader_t* reader)
   {
     err = -3;
   }
-  PRINT("create_reader: unlock\n");
+  PRINT("create_reader unlock\n");
   pthread_mutex_unlock (&chan->hdr->mtx);
 
   return err;
@@ -464,15 +467,15 @@ void release_reader (reader_t* re)
 
 //  pthread_mutex_unlock (&re->channel->hdr->mtx);
 
-  PRINT("release_reader: before lock\n");
+  PRINT("release_reader before lock\n");
   int ret = robust_mutex_lock(&re->channel->hdr->mtx);
-  PRINT("release_reader: lock\n");
+  PRINT("release_reader lock\n");
 
   pthread_mutex_unlock(&re->channel->reader_ids[re->id]);
   re->channel->hdr->readers--;
   re->id = -1;
 
-  PRINT("release_reader: unlock\n");
+  PRINT("release_reader unlock\n");
   pthread_mutex_unlock (&re->channel->hdr->mtx);
 }
 
@@ -491,9 +494,9 @@ int reader_buffer_get (reader_t* re, void** buf)
   int ret = 0;
   int state = 0;
 
-  PRINT("reader_buffer_get: before lock\n");
+  PRINT("reader_buffer_get before lock\n");
   ret = robust_mutex_lock(&re->channel->hdr->mtx);
-  PRINT("reader_buffer_get: lock\n");
+  PRINT("reader_buffer_get lock\n");
 
   if ((re->channel->hdr->latest == -1) && (ret == 0)) {
     state = SHM_NODATA;
@@ -510,7 +513,7 @@ int reader_buffer_get (reader_t* re, void** buf)
   } else {
     state = SHM_FATAL;
   }
-  PRINT("reader_buffer_get: unlock\n");
+  PRINT("reader_buffer_get unlock\n");
   pthread_mutex_unlock (&re->channel->hdr->mtx);
 
   if (ret != 0)
@@ -535,9 +538,9 @@ int reader_buffer_wait (reader_t* re, void** buf)
 
   int ret = 0;
 
-  PRINT("reader_buffer_wait: before lock\n");
+  PRINT("reader_buffer_wait before lock\n");
   ret = robust_mutex_lock(&re->channel->hdr->mtx);
-  PRINT("reader_buffer_wait: lock\n");
+  PRINT("reader_buffer_wait lock\n");
 
   while ((re->id != -1) && (re->channel->reading[re->id] == re->channel->hdr->latest) && (ret == 0))
   {
@@ -545,7 +548,7 @@ int reader_buffer_wait (reader_t* re, void** buf)
   }
 
   if (re->id == -1) {
-  PRINT("reader_buffer_wait: unlock\n");
+  PRINT("reader_buffer_wait unlock\n");
     pthread_mutex_unlock (&re->channel->hdr->mtx);
     return SHM_FATAL;
   }
@@ -554,7 +557,7 @@ int reader_buffer_wait (reader_t* re, void** buf)
   {
     re->channel->reading[re->id] = re->channel->hdr->latest;
   }
-  PRINT("reader_buffer_wait: unlock\n");
+  PRINT("reader_buffer_wait unlock\n");
   pthread_mutex_unlock (&re->channel->hdr->mtx);
 
   if (ret == 0)
@@ -585,9 +588,9 @@ int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void*
 
   int ret = 0;
 
-  PRINT("reader_buffer_timedwait: before lock\n");
+  PRINT("reader_buffer_timedwait before lock\n");
   ret = robust_mutex_lock(&re->channel->hdr->mtx);
-  PRINT("reader_buffer_timedwait: lock\n");
+  PRINT("reader_buffer_timedwait lock\n");
 
   while ((re->id != -1) && (re->channel->reading[re->id] == re->channel->hdr->latest) && (ret == 0))
   {
@@ -595,7 +598,7 @@ int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void*
   }
 
   if (re->id == -1) {
-  PRINT("reader_buffer_timedwait: unlock\n");
+  PRINT("reader_buffer_timedwait unlock\n");
     pthread_mutex_unlock (&re->channel->hdr->mtx);
     return SHM_FATAL;
   }
@@ -604,7 +607,7 @@ int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void*
   {
     re->channel->reading[re->id] = re->channel->hdr->latest;
   }
-  PRINT("reader_buffer_timedwait: unlock\n");
+  PRINT("reader_buffer_timedwait unlock\n");
   pthread_mutex_unlock (&re->channel->hdr->mtx);
 
 

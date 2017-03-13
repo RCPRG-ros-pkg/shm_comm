@@ -255,8 +255,8 @@ int shm_release_writer (shm_writer_t *writer)
   writer->channel.hdr = NULL;
   writer->channel.reader_ids = NULL;
   writer->channel.reading = NULL;
-  close (writer->data_fd);
-  writer->data_fd = 0;
+  close (writer->hdr_fd);
+  writer->hdr_fd = 0;
   free (writer);
 
   return 0;
@@ -414,8 +414,8 @@ int shm_release_reader (shm_reader_t *reader)
   reader->channel.hdr = NULL;
   reader->channel.reader_ids = NULL;
   reader->channel.reading = NULL;
-  close (reader->data_fd);
-  reader->data_fd = 0;
+  close (reader->hdr_fd);
+  reader->hdr_fd = 0;
   free (reader);
 
   return 0;

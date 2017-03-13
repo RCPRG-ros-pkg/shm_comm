@@ -53,6 +53,7 @@ extern "C" {
 #define SHM_TIMEOUT -10
 #define SHM_NEWDATA 0
 #define SHM_OLDDATA 1
+#define SHM_NODATA 2
 */
 #define SHM_SHARED 1
 
@@ -123,6 +124,10 @@ int reader_buffer_get(reader_t* re, void** buf);
 int reader_buffer_wait(reader_t* re, void** buf);
 
 int reader_buffer_timedwait(reader_t* re, const struct timespec *abstime, void** buf);
+
+int robust_mutex_lock(pthread_mutex_t *mutex);
+
+int robust_mutex_timedlock(pthread_mutex_t *mutex, const struct timespec *restrict abs_timeout);
 
 #ifdef __cplusplus
 };  // extern "C"

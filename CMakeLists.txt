@@ -20,4 +20,15 @@ target_link_libraries(shm_comm ${catkin_LIBRARIES} pthread rt)
 target_link_libraries(shm_comm_example ${catkin_LIBRARIES} pthread rt)
 target_link_libraries(shm_comm_diag ${catkin_LIBRARIES} pthread rt)
 
+### Orocos Package Exports and Install Targets ###
+
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
 

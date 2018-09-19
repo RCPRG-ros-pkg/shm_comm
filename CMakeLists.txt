@@ -22,7 +22,7 @@ target_link_libraries(shm_comm_diag ${catkin_LIBRARIES} pthread rt)
 
 ### Orocos Package Exports and Install Targets ###
 
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS shm_comm shm_comm_example shm_comm_diag
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -174,6 +174,7 @@ int init_channel_hdr (int size, int readers, int flags, channel_hdr_t *shdata)
   {
     pthread_mutexattr_setpshared (&mutex_attr, PTHREAD_PROCESS_SHARED);
     pthread_mutexattr_setrobust (&mutex_attr, PTHREAD_MUTEX_ROBUST);
+    pthread_mutexattr_setprotocol(&mutex_attr, PTHREAD_PRIO_INHERIT);
   }
   pthread_mutex_init (&shdata->mtx, &mutex_attr);
 

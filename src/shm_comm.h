@@ -57,7 +57,7 @@ extern "C" {
 */
 #define SHM_SHARED 1
 
-#define CHANNEL_HDR_SIZE(S, R) (sizeof(channel_hdr_t) + (R) * sizeof(int) + (R) * sizeof(int))
+#define CHANNEL_HDR_SIZE(R) (sizeof(channel_hdr_t) + (R) * sizeof(int) + (R) * sizeof(int))
 #define CHANNEL_DATA_SIZE(S, R) (((R) + 2) * (S))
 
 #define GET_BUFFER(C, I) (((char *) (C)->buffer) + (I) * (C)->hdr->size)
@@ -66,7 +66,8 @@ typedef struct {
 	pthread_cond_t cond;
 	pthread_mutex_t mtx;
     int latest; //! index of latest written buffer
-    int readers; //! number of connected readers
+//TODO: remove:
+//    int readers; //! number of connected readers
     int max_readers; //! number of allocated readers
     unsigned int size; //! size of buffer element
 } channel_hdr_t;

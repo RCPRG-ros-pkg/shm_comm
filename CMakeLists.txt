@@ -15,14 +15,18 @@ include_directories(include)
 add_library(shm_comm src/shm_comm.c src/shm_channel.c)
 add_executable(shm_comm_example examples/main.c src/shm_comm.c src/shm_channel.c)
 add_executable(shm_comm_diag src/diag.c src/shm_comm.c src/shm_channel.c)
+add_executable(shm_comm_test src/test.c src/shm_comm.c src/shm_channel.c)
+add_executable(shm_comm_test2 src/test2.c)
 
 target_link_libraries(shm_comm ${catkin_LIBRARIES} pthread rt)
 target_link_libraries(shm_comm_example ${catkin_LIBRARIES} pthread rt)
 target_link_libraries(shm_comm_diag ${catkin_LIBRARIES} pthread rt)
+target_link_libraries(shm_comm_test ${catkin_LIBRARIES} pthread rt)
+target_link_libraries(shm_comm_test2 ${catkin_LIBRARIES} pthread rt)
 
 ### Orocos Package Exports and Install Targets ###
 
-install(TARGETS shm_comm shm_comm_example shm_comm_diag
+install(TARGETS shm_comm shm_comm_example shm_comm_diag shm_comm_test shm_comm_test2
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

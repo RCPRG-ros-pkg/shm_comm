@@ -42,14 +42,14 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers, int fo
     return -2;
   }
 
-  if (ftruncate (shm_hdr_fd, CHANNEL_HDR_SIZE(size, readers)) != 0)
+  if (ftruncate (shm_hdr_fd, CHANNEL_HDR_SIZE(readers)) != 0)
   {
     close (shm_hdr_fd);
     shm_unlink (name_hdr);
     return -3;
   }
 
-  void *shm_hdr = mmap (NULL, CHANNEL_HDR_SIZE(size, readers), PROT_READ | PROT_WRITE, MAP_SHARED, shm_hdr_fd, 0);
+  void *shm_hdr = mmap (NULL, CHANNEL_HDR_SIZE(readers), PROT_READ | PROT_WRITE, MAP_SHARED, shm_hdr_fd, 0);
 
   if (shm_hdr == MAP_FAILED)
   {
@@ -73,7 +73,7 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers, int fo
 
   if (shm_data_fd < 0)
   {
-    munmap (shm_hdr, CHANNEL_HDR_SIZE(size, readers));
+    munmap (shm_hdr, CHANNEL_HDR_SIZE(readers));
     close (shm_hdr_fd);
     shm_unlink (name_hdr);
     return -5;
@@ -81,7 +81,7 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers, int fo
 
   if (ftruncate (shm_data_fd, CHANNEL_DATA_SIZE(size, readers)) != 0)
   {
-    munmap (shm_hdr, CHANNEL_HDR_SIZE(size, readers));
+    munmap (shm_hdr, CHANNEL_HDR_SIZE(readers));
     close (shm_hdr_fd);
     shm_unlink (name_hdr);
 
@@ -94,7 +94,7 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers, int fo
 
   if (shm_hdr == MAP_FAILED)
   {
-    munmap (shm_hdr, CHANNEL_HDR_SIZE(size, readers));
+    munmap (shm_hdr, CHANNEL_HDR_SIZE(readers));
     close (shm_hdr_fd);
     shm_unlink (name_hdr);
 
@@ -107,7 +107,7 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers, int fo
 
   init_channel_hdr (size, readers, SHM_SHARED, shm_hdr);
 
-  munmap (shm_hdr, CHANNEL_HDR_SIZE(size, readers));
+  munmap (shm_hdr, CHANNEL_HDR_SIZE(readers));
   munmap (shm_data, CHANNEL_DATA_SIZE(size, readers));
   close (shm_hdr_fd);
   close (shm_data_fd);
@@ -187,7 +187,7 @@ int shm_connect_writer (const char name[NAME_LEN], shm_writer_t **ret)
   }
 
   // check header channel consistency
-  if (CHANNEL_HDR_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb.st_size) {
+  if (CHANNEL_HDR_SIZE(shm_hdr->max_readers) != sb.st_size) {
     close ((*ret)->hdr_fd);
     close ((*ret)->data_fd);
     free (*ret);
@@ -251,7 +251,7 @@ int shm_release_writer (shm_writer_t *writer)
   close (writer->data_fd);
   writer->data_fd = 0;
 
-  munmap (writer->channel.hdr, CHANNEL_HDR_SIZE(writer->channel.hdr->size, writer->channel.hdr->max_readers));
+  munmap (writer->channel.hdr, CHANNEL_HDR_SIZE(writer->channel.hdr->max_readers));
   writer->channel.hdr = NULL;
   writer->channel.reader_ids = NULL;
   writer->channel.reading = NULL;
@@ -318,7 +318,7 @@ int shm_connect_reader (const char name[NAME_LEN], shm_reader_t **ret)
   (*ret)->hdr_fd = shm_open (name_hdr, O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
   if ((*ret)->hdr_fd < 0)
   {
-    printf("shm_connect_reader 1: %d\n", errno);
+    //printf("shm_connect_reader 1: %d\n", errno);
     free (*ret);
     return SHM_NO_CHANNEL;
   }
@@ -326,7 +326,7 @@ int shm_connect_reader (const char name[NAME_LEN], shm_reader_t **ret)
   (*ret)->data_fd = shm_open (name_data, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
   if ((*ret)->data_fd < 0)
   {
-    printf("shm_connect_reader 2: %d\n", errno);
+    //printf("shm_connect_reader 2: %d\n", errno);
     close ((*ret)->hdr_fd);
     free (*ret);
     return SHM_NO_CHANNEL;
@@ -346,7 +346,7 @@ int shm_connect_reader (const char name[NAME_LEN], shm_reader_t **ret)
   }
 
   // check header channel consistency
-  if (CHANNEL_HDR_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb.st_size) {
+  if (CHANNEL_HDR_SIZE(shm_hdr->max_readers) != sb.st_size) {
     close ((*ret)->hdr_fd);
     close ((*ret)->data_fd);
     free (*ret);
@@ -410,7 +410,7 @@ int shm_release_reader (shm_reader_t *reader)
   close (reader->data_fd);
   reader->data_fd = 0;
 
-  munmap (reader->channel.hdr, CHANNEL_HDR_SIZE(writer->channel.hdr->size, reader->channel.hdr->max_readers));
+  munmap (reader->channel.hdr, CHANNEL_HDR_SIZE(reader->channel.hdr->max_readers));
   reader->channel.hdr = NULL;
   reader->channel.reader_ids = NULL;
   reader->channel.reading = NULL;

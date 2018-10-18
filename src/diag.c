@@ -86,11 +86,11 @@ int main(int argc, char **argv) {
     }
 
     // check header channel consistency
-    if (CHANNEL_HDR_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb.st_size) {
+    if (CHANNEL_HDR_SIZE(shm_hdr->max_readers) != sb.st_size) {
         close (hdr_fd);
         close (data_fd);
 //        free (ret);
-        printf("channel header is inconsistent: CHANNEL_HDR_SIZE(shm_hdr->size, shm_hdr->max_readers) != sb.st_size\n");
+        printf("channel header is inconsistent: CHANNEL_HDR_SIZE(shm_hdr->max_readers) != sb.st_size\n");
         return SHM_CHANNEL_INCONSISTENT;
     }
 
@@ -131,7 +131,6 @@ int main(int argc, char **argv) {
     printf("hdr mutex locked\n");
 
     printf("shm_hdr->latest: %d\n", shm_hdr->latest);
-    printf("shm_hdr->readers: %d\n", shm_hdr->readers);
     printf("shm_hdr->max_readers: %d\n", shm_hdr->max_readers);
     printf("shm_hdr->size: %u\n", shm_hdr->size);
 

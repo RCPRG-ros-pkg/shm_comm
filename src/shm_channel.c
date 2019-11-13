@@ -282,7 +282,7 @@ int shm_writer_buffer_write (shm_writer_t *wr)
   return writer_buffer_write(&wr->writer);
 }
 
-int shm_writer_get_size(shm_writer_t *wr)
+int shm_writer_get_size(const shm_writer_t *wr)
 {
   return wr->channel.hdr->size;
 }

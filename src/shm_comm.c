@@ -1,7 +1,7 @@
 /*
  Copyright (c) 2014, Robot Control and Pattern Recognition Group, Warsaw University of Technology
  All rights reserved.
- 
+
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
      * Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
      * Neither the name of the Warsaw University of Technology nor the
        names of its contributors may be used to endorse or promote products
        derived from this software without specific prior written permission.
- 
+
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -38,8 +38,8 @@
 #define USLEEP100
 
 
-//#define PRINT(x) printf(x)
-#define PRINT(x)
+#define PRINT(x) printf(x)
+// #define PRINT(x)
 /*
 int robust_hdr_mutex_lock(channel_hdr_t *hdr) {
   // lock hdr mutex in the safe way
@@ -445,6 +445,7 @@ int writer_buffer_write (writer_t* wr)
   PRINT("writer_buffer_write before lock\n");
   int err = robust_mutex_lock(&wr->channel->hdr->mtx);
   if (err != 0) {
+    PRINT("writer_buffer_write lock error");
     return err;
   }
   USLEEP100;
@@ -578,7 +579,8 @@ void release_reader (reader_t* re)
   PRINT("release_reader before lock\n");
   int ret = robust_mutex_lock(&re->channel->hdr->mtx);
   if (ret != 0) {
-    return ret;
+    PRINT("release_reader error during lock\n");
+    return;
   }
   PRINT("release_reader lock\n");
 
@@ -718,7 +720,7 @@ int reader_buffer_wait (reader_t* re, void** buf)
     pthread_mutex_unlock (&re->channel->hdr->mtx);
     return state;
   } else if (ret == EOWNERDEAD) {
-    printf("reader_buffer_wait: EOWNERDEAD");
+    PRINT("reader_buffer_wait: EOWNERDEAD\n");
     return SHM_NODATA;
   } else {
     PRINT("reader_buffer_wait unlock\n");

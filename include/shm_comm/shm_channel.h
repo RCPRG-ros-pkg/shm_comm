@@ -22,7 +22,7 @@ int shm_connect_writer (const char name[NAME_LEN], shm_writer_t **ret);
 int shm_release_writer (shm_writer_t *writer);
 int shm_writer_buffer_get (shm_writer_t *wr, void** buf);
 int shm_writer_buffer_write (shm_writer_t *wr);
-int shm_writer_get_size(shm_writer_t *wr);
+int shm_writer_get_size(const shm_writer_t *wr);
 
 int shm_connect_reader (const char name[NAME_LEN], shm_reader_t **ret);
 int shm_release_reader (shm_reader_t *reader);
@@ -31,7 +31,7 @@ int shm_reader_buffer_wait (shm_reader_t *reader, void **buf);
 int shm_reader_buffer_timedwait (shm_reader_t *reader, const struct timespec *abstime, void **buf);
 
 #ifdef __cplusplus
-};  // extern "C"
+} // extern "C"
 #endif
 
 #endif // __SHM_CHANNEL__

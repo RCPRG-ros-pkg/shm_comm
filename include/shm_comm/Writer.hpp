@@ -67,7 +67,7 @@ public:
      *
      * @return Size of shared memory buffer
      */
-    int get_size();
+    int buffer_size() const;
 
     ///////////////////////////////////////////////////////////////////////////////
     // Non-throwing buffer access functions
@@ -76,7 +76,9 @@ public:
     /**
      * @brief Returns pointer to shared memory buffer. Non-throwing
      * @details It returns with an acquired valid pointer
-     * to shared memory buffer.
+     * to shared memory buffer. This function has to be called before
+     * any call to `[try_]buffer_write` functions. This is because by getting
+     * buffer's pointer we are signaling begin of write cycle.
      *
      * If this function fails, error code is returned.
      *
@@ -86,12 +88,48 @@ public:
     int try_buffer_get(void** buffer);
 
     /**
-     * @brief Attempts to write prepared data right to the shared memory buffer
-     * @details
+     * @brief Signals end of write operation to the Reader. Non-throwing
+     * @details Call to this function is required in order to signal
+     * any reader, that data edition in Writer's has been ended and Reader
+     * can safely read data from shared buffer.
+     * You should call this function also to wake up any Reader,
+     * which is waiting for read operation.
+     *
+     * If this function fails, error code is returned.
      *
      * @return Error code. =0 when no error.
      */
     int try_buffer_write();
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // Throwing buffer access functions
+    ///////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * @brief Returns pointer to shared memory buffer. Throwing
+     * @details It returns with an acquired valid pointer
+     * to shared memory buffer. This function has to be called before
+     * any call to `[try_]buffer_write` functions. This is because by getting
+     * buffer's pointer we are signaling begin of write cycle.
+     *
+     * If this function fails, exception is thrown.
+     * On success, valid (non-null) pointer to memory is returned
+     *
+     * @return valid (non-null) pointer to shared memory buffer
+     */
+    void* buffer_get();
+
+    /**
+     * @brief Attempts to write
+     * @details Call to this function is required in order to signal
+     * any reader, that data edition in Writer's has been ended and Reader
+     * can safely read data from shared buffer.
+     * You should call this function also to wake up any Reader,
+     * which is waiting for read operation.
+     *
+     * If this function fails, exception is thrown.
+     */
+    void buffer_write();
 
 private:
     /**

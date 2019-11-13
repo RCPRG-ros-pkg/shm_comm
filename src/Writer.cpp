@@ -59,7 +59,7 @@ Writer& Writer::operator=(Writer&& other)
     return *this;
 }
 
-int Writer::get_size()
+int Writer::buffer_size() const
 {
     assert(m_impl != nullptr);
 
@@ -79,6 +79,34 @@ int Writer::try_buffer_write()
     assert(m_impl != nullptr);
 
     return shm_writer_buffer_write(m_impl);
+}
+
+void* Writer::buffer_get()
+{
+    assert(m_impl != nullptr);
+
+    void* buffer {nullptr};
+    const auto result = shm_writer_buffer_get(m_impl, &buffer);
+    if(result != 0)
+    {
+        throw std::runtime_error("Could not get shared memory writer buffer, error: "
+            + std::to_string(result));
+    }
+
+    assert(buffer != nullptr);
+    return buffer;
+}
+
+void Writer::buffer_write()
+{
+    assert(m_impl != nullptr);
+
+    const auto result = shm_writer_buffer_write(m_impl);
+    if(result != 0)
+    {
+        throw std::runtime_error("Could not write shared memory buffer, error: "
+            + std::to_string(result));
+    }
 }
 
 Writer::Writer(shm_writer_t* impl)

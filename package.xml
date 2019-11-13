@@ -4,6 +4,6 @@
   <description>Shared memory lock-free IPC</description>
   <maintainer email="dawid.seredynski@blablabla.gmail.com">dseredyn</maintainer>
   <license>BSD</license>
-  <author>dseredyn, konradb3</author>
+  <author>dseredyn, konradb3, akowalew</author>
   <buildtool_depend>catkin</buildtool_depend>
 </package>

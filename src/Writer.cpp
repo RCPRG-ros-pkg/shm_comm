@@ -1,0 +1,90 @@
+///////////////////////////////////////////////////////////////////////////////
+// Writer.cpp
+//
+// Contains implementation of Writer class
+///////////////////////////////////////////////////////////////////////////////
+
+#include "shm_comm/Writer.hpp"
+
+#include <cassert>
+#include <cstdio>
+
+#include <stdexcept>
+#include <utility>
+
+namespace shm {
+
+Writer Writer::open(const ChannelName& channel_name)
+{
+    printf("[shm] Opening writer from channel '%s'\n", channel_name.data());
+
+    shm_writer_t* writer_impl {nullptr};
+    const auto result = shm_connect_writer(channel_name.data(), &writer_impl);
+    if(result != 0)
+    {
+        throw std::runtime_error("Could not open shared memory writer, error: "
+            + std::to_string(result));
+    }
+
+    assert(writer_impl != nullptr);
+    return Writer{writer_impl};
+}
+
+Writer::~Writer()
+{
+    if(m_impl == nullptr)
+    {
+        // There is no writer to release
+        return;
+    }
+
+    printf("[shm] Releasing writer %p\n", (void*)m_impl);
+    const auto result = shm_release_writer(m_impl);
+    if(result != 0)
+    {
+        printf("[shm] Could not release writer %p\n", (void*)m_impl);
+    }
+}
+
+Writer::Writer(Writer&& other)
+    :   m_impl(std::exchange(other.m_impl, nullptr))
+{}
+
+Writer& Writer::operator=(Writer&& other)
+{
+    assert(&other != this);
+
+    m_impl = std::exchange(other.m_impl, nullptr);
+
+    return *this;
+}
+
+int Writer::get_size()
+{
+    assert(m_impl != nullptr);
+
+    return shm_writer_get_size(m_impl);
+}
+
+int Writer::try_buffer_get(void** buffer)
+{
+    assert(m_impl != nullptr);
+    assert(buffer != nullptr);
+
+    return shm_writer_buffer_get(m_impl, buffer);
+}
+
+int Writer::try_buffer_write()
+{
+    assert(m_impl != nullptr);
+
+    return shm_writer_buffer_write(m_impl);
+}
+
+Writer::Writer(shm_writer_t* impl)
+    :   m_impl{std::exchange(impl, nullptr)}
+{
+    printf("[shm] Writer %p initialized\n", (void*)m_impl);
+}
+
+} // namespace shm

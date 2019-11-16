@@ -763,7 +763,10 @@ int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void*
   PRINT("reader_buffer_timedwait lock\n");
 
   USLEEP100;
-  while ((re->id != -1) && (re->channel->reading[re->id] == re->channel->hdr->latest) && (re->channel->hdr->latest >= 0) && (ret == 0))
+  while ((re->id != -1)
+    && (re->channel->reading[re->id] == re->channel->hdr->latest)
+    && (re->channel->hdr->latest >= 0)
+    && (ret == 0))
   {
     USLEEP100;
     ret = pthread_cond_timedwait (&re->channel->hdr->cond, &re->channel->hdr->mtx, abstime);
@@ -785,7 +788,9 @@ int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void*
     if (re->channel->reading[re->id] == re->channel->hdr->latest)
     {
       USLEEP100;
-      state = SHM_OLDDATA;
+      // If (latest == -1), we have freshly initialized channel
+      //  with, of course, no written data.
+      state = (re->channel->hdr->latest == -1) ? SHM_NODATA : SHM_OLDDATA;
     } else if (re->channel->hdr->latest >= 0) {
       USLEEP100;
       state = SHM_NEWDATA;

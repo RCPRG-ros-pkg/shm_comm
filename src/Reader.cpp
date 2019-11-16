@@ -75,13 +75,60 @@ int Reader::try_buffer_wait(void** buffer)
     return shm_reader_buffer_wait(m_impl, buffer);
 }
 
-int Reader::try_buffer_timedwait(const struct timespec *abstime, void **buffer)
+int Reader::try_buffer_timedwait(const timespec& abstime, void **buffer)
 {
     assert(m_impl != nullptr);
-    assert(abstime != nullptr);
     assert(buffer != nullptr);
 
-    return shm_reader_buffer_timedwait(m_impl, abstime, buffer);
+    return shm_reader_buffer_timedwait(m_impl, &abstime, buffer);
+}
+
+void* Reader::buffer_get()
+{
+    assert(m_impl != nullptr);
+
+    void* buffer {nullptr};
+    const auto result = shm_reader_buffer_get(m_impl, &buffer);
+    if(result != 0)
+    {
+        throw std::runtime_error("Could not get shared memory reader buffer, error: "
+            + std::to_string(result));
+    }
+
+    assert(buffer != nullptr);
+    return buffer;
+}
+
+void* Reader::buffer_wait()
+{
+    assert(m_impl != nullptr);
+
+    void* buffer {nullptr};
+    const auto result = shm_reader_buffer_wait(m_impl, &buffer);
+    if(result != 0)
+    {
+        throw std::runtime_error("Could not wait for shared memory reader buffer, error: "
+            + std::to_string(result));
+    }
+
+    assert(buffer != nullptr);
+    return buffer;
+}
+
+void* Reader::buffer_timedwait(const timespec& abstime)
+{
+    assert(m_impl != nullptr);
+
+    void* buffer {nullptr};
+    const auto result = shm_reader_buffer_timedwait(m_impl, &abstime, &buffer);
+    if(result != 0)
+    {
+        throw std::runtime_error("Could not do timedwait for shared memory reader buffer, error: "
+            + std::to_string(result));
+    }
+
+    assert(buffer != nullptr);
+    return buffer;
 }
 
 Reader::Reader(shm_reader_t* impl)

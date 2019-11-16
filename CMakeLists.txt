@@ -22,6 +22,16 @@ option(SHM_COMM_BUILD_TESTS "Whether to build tests or not" ON)
 find_package(catkin REQUIRED)
 
 ###############################################################################
+# Package configuration
+###############################################################################
+
+catkin_package(
+    INCLUDE_DIRS include
+    LIBRARIES shm_comm
+#  DEPENDS roscpp geometry_msgs visualization_msgs message_runtime urdf Eigen orocos_kdl kdl_parser
+)
+
+###############################################################################
 # Main library target
 ###############################################################################
 
@@ -76,16 +86,6 @@ if(SHM_COMM_BUILD_EXAMPLES)
     # add_executable(shm_comm_test2 src/test2.c)
     # target_link_libraries(shm_comm_test2 PRIVATE shm_comm pthread rt)
 endif()
-
-###############################################################################
-# Package configuration
-###############################################################################
-
-catkin_package(
-    INCLUDE_DIRS include
-    LIBRARIES shm_comm
-#  DEPENDS roscpp geometry_msgs visualization_msgs message_runtime urdf Eigen orocos_kdl kdl_parser
-)
 
 ###############################################################################
 # External dependencies

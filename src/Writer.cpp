@@ -14,7 +14,9 @@
 
 namespace shm {
 
-Writer Writer::open(const ChannelName& channel_name)
+namespace {
+
+shm_writer_t* open_writer(const ChannelName& channel_name)
 {
     printf("[shm] Opening writer from channel '%s'\n", channel_name.data());
 
@@ -27,7 +29,15 @@ Writer Writer::open(const ChannelName& channel_name)
     }
 
     assert(writer_impl != nullptr);
-    return Writer{writer_impl};
+    return writer_impl;
+}
+
+} // namespace
+
+Writer::Writer(const ChannelName& channel_name)
+    :   m_impl{open_writer(channel_name)}
+{
+    printf("[shm] Writer %p initialized\n", (void*)m_impl);
 }
 
 Writer::~Writer()
@@ -107,12 +117,6 @@ void Writer::buffer_write()
         throw std::runtime_error("Could not write shared memory buffer, error: "
             + std::to_string(result));
     }
-}
-
-Writer::Writer(shm_writer_t* impl)
-    :   m_impl{std::exchange(impl, nullptr)}
-{
-    printf("[shm] Writer %p initialized\n", (void*)m_impl);
 }
 
 } // namespace shm

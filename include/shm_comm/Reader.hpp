@@ -14,7 +14,7 @@ namespace shm {
  * @brief Represents shared memory channel reader
  * @details It may be used to read data using shared memory.
  * The only requirement is to have a valid, existing channel instance, which
- * may be created using `Channel::create(...)`
+ * may be created using `Channel(...)`
  *
  * There are two types of buffer access functions: prefixed by `try_` and
  * not prefixed. First of them return status codes, second may throw. Thus
@@ -32,9 +32,9 @@ namespace shm {
  * with an error. So, to overcome this problem you should do something like this:
  *
  * ```c++
- *  const auto channel = shm::Channel::create(channel_name, size, nreaders);
- *  auto writer = shm::Writer::open(channel_name);
- *  auto reader = shm::Reader::open(channel_name);
+ *  const auto channel = shm::Channel(channel_name, size, nreaders);
+ *  auto writer = shm::Writer(channel_name);
+ *  auto reader = shm::Reader(channel_name);
  *
  *  // Perform first write-read operation
  *  // It is needed to initialize shm buffers
@@ -50,8 +50,9 @@ class Reader
 {
 public:
     /**
-     * @brief Opens shared memory reader
-     * @details It opens connection to one of remain channels' reader.
+     * @brief Constructor
+     * @details Opens shared memory reader
+     * It opens connection to one of remain channels' reader.
      * Note that provided channel name must represent arleady existing
      * channel, so better is to call Channel::open_reader(...) in terms of
      * safety (but not at all!)
@@ -61,7 +62,7 @@ public:
      * @param name name of shared memory channel to connect
      * @return shared memory reader instance
      */
-    static Reader open(const ChannelName& channel_name);
+    explicit Reader(const ChannelName& channel_name);
 
     /**
      * @brief Destructor
@@ -179,13 +180,6 @@ public:
     void* buffer_timedwait(const timespec& abstime);
 
 private:
-    /**
-     * @brief Constructor
-     *
-     * @param reader shared memory reader implementation
-     */
-    explicit Reader(shm_reader_t* impl);
-
     ///////////////////////////////////////////////////////////////////////////////
     // Private members
     ///////////////////////////////////////////////////////////////////////////////

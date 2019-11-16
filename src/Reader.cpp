@@ -10,11 +10,12 @@
 #include <cstdio>
 
 #include <stdexcept>
-#include <utility>
 
 namespace shm {
 
-Reader Reader::open(const ChannelName& channel_name)
+namespace {
+
+shm_reader_t* open_reader(const ChannelName& channel_name)
 {
     printf("[shm] Opening reader from channel '%s'\n", channel_name.data());
 
@@ -27,7 +28,15 @@ Reader Reader::open(const ChannelName& channel_name)
     }
 
     assert(reader_impl != nullptr);
-    return Reader{reader_impl};
+    return reader_impl;
+}
+
+} // namespace
+
+Reader::Reader(const ChannelName& channel_name)
+    :   m_impl{open_reader(channel_name)}
+{
+    printf("[shm] Reader %p initialized\n", (void*)m_impl);
 }
 
 Reader::~Reader()
@@ -129,12 +138,6 @@ void* Reader::buffer_timedwait(const timespec& abstime)
 
     assert(buffer != nullptr);
     return buffer;
-}
-
-Reader::Reader(shm_reader_t* impl)
-    :   m_impl{std::exchange(impl, nullptr)}
-{
-    printf("[shm] Reader %p initialized\n", (void*)m_impl);
 }
 
 } // namespace shm

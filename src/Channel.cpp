@@ -70,14 +70,14 @@ Reader Channel::open_reader()
 {
     assert(m_name);
 
-    return Reader::open(*m_name);
+    return Reader(*m_name);
 }
 
 Writer Channel::open_writer()
 {
     assert(m_name);
 
-    return Writer::open(*m_name);
+    return Writer(*m_name);
 }
 
 } // namespace shm

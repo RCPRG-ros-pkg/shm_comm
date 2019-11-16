@@ -14,7 +14,7 @@ namespace shm {
  * @brief Represents shared memory channel writer
  * @details It may be used to read data using shared memory.
  * The only requirement is to have a valid, existing channel instance, which
- * may be created using `Channel::create(...)`
+ * may be created using `Channel(...)`
  *
  * There are two types of buffer access functions: prefixed by `try_` and
  * not prefixed. First of them return status codes, second may throw. Thus
@@ -24,8 +24,9 @@ class Writer
 {
 public:
     /**
-     * @brief Opens shared memory writer
-     * @details It opens connection to channels' writer.
+     * @brief Constructor
+     * @details Opens shared memory writer
+     * It opens connection to channels' writer.
      * Note that provided channel name must represent arleady existing
      * channel.
      *
@@ -34,7 +35,7 @@ public:
      * @param name name of shared memory channel to connect
      * @return shared memory writer instance
      */
-    static Writer open(const ChannelName& channel_name);
+    explicit Writer(const ChannelName& channel_name);
 
     /**
      * @brief Destructor
@@ -138,13 +139,6 @@ public:
     void buffer_write();
 
 private:
-    /**
-     * @brief Constructor
-     *
-     * @param writer shared memory writer implementation
-     */
-    explicit Writer(shm_writer_t* impl);
-
     ///////////////////////////////////////////////////////////////////////////////
     // Private members
     ///////////////////////////////////////////////////////////////////////////////

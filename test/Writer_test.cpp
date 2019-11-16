@@ -33,13 +33,13 @@ const auto other_nreaders = 10;
 TEST_CASE("Writers may be opened for existing channels")
 {
     {
-        const auto channel = shm::Channel(channel_name, size, nreaders);
-        CHECK_NOTHROW(shm::Writer::open(channel_name));
+        auto channel = shm::Channel(channel_name, size, nreaders);
+        CHECK_NOTHROW(channel.open_writer());
     }
 
     {
-        const auto other_channel = shm::Channel(other_channel_name, other_size, other_nreaders);
-        CHECK_NOTHROW(shm::Writer::open(other_channel_name));
+        auto other_channel = shm::Channel(other_channel_name, other_size, other_nreaders);
+        CHECK_NOTHROW(other_channel.open_writer());
     }
 }
 
@@ -47,30 +47,32 @@ TEST_CASE("Writers could not be opened for non-existing channels")
 {
     {
         const auto channel = shm::Channel(channel_name, size, nreaders);
-        CHECK_THROWS(shm::Writer::open(other_channel_name));
+        std::experimental::optional<shm::Writer> writer;
+        CHECK_THROWS(writer.emplace(other_channel_name));
     }
 
     {
         const auto other_channel = shm::Channel(other_channel_name, other_size, other_nreaders);
-        CHECK_THROWS(shm::Writer::open(channel_name));
+        std::experimental::optional<shm::Writer> writer;
+        CHECK_THROWS(writer.emplace(channel_name));
     }
 }
 
 TEST_CASE("There is no (in theory) limit at number of writers")
 {
-    const auto channel = shm::Channel(channel_name, size, nreaders);
+    auto channel = shm::Channel(channel_name, size, nreaders);
 
     std::vector<shm::Writer> writers;
     for(auto i = 0; i < 100; ++i)
     {
-        CHECK_NOTHROW(writers.push_back(shm::Writer::open(channel_name)));
+        CHECK_NOTHROW(writers.emplace_back(channel_name));
     }
 }
 
 TEST_CASE("Non-null pointer to buffer may be obtained from a valid writer")
 {
-    const auto channel = shm::Channel(channel_name, size, nreaders);
-    auto writer = shm::Writer::open(channel_name);
+    auto channel = shm::Channel(channel_name, size, nreaders);
+    auto writer = shm::Writer(channel_name);
 
     const auto buffer = writer.buffer_get();
     CHECK(buffer != nullptr);
@@ -87,19 +89,19 @@ TEST_CASE("Non-null pointer to buffer may be obtained from a valid writer")
 
 TEST_CASE("Writer's buffer will have size specified by Channel")
 {
-    const auto channel = shm::Channel(channel_name, size, nreaders);
-    const auto writer = shm::Writer::open(channel_name);
+    auto channel = shm::Channel(channel_name, size, nreaders);
+    const auto writer = shm::Writer(channel_name);
     CHECK(writer.buffer_size() == size);
 
     const auto other_channel = shm::Channel(other_channel_name, other_size, other_nreaders);
-    const auto other_writer = shm::Writer::open(other_channel_name);
+    const auto other_writer = shm::Writer(other_channel_name);
     CHECK(other_writer.buffer_size() == other_size);
 }
 
 TEST_CASE("Editing of writer's buffer is allowed")
 {
-    const auto channel = shm::Channel(channel_name, size, nreaders);
-    auto writer = shm::Writer::open(channel_name);
+    auto channel = shm::Channel(channel_name, size, nreaders);
+    auto writer = shm::Writer(channel_name);
     REQUIRE(writer.buffer_size() == size);
 
     auto buffer = writer.buffer_get();
@@ -116,8 +118,8 @@ TEST_CASE("Editing of writer's buffer is allowed")
 
 TEST_CASE("After edition of data, writer's buffer may be written (commited)")
 {
-    const auto channel = shm::Channel(channel_name, size, nreaders);
-    auto writer = shm::Writer::open(channel_name);
+    auto channel = shm::Channel(channel_name, size, nreaders);
+    auto writer = shm::Writer(channel_name);
     REQUIRE(writer.buffer_size() == size);
 
     auto buffer = writer.buffer_get();
@@ -131,7 +133,7 @@ TEST_CASE("After edition of data, writer's buffer may be written (commited)")
 
     SUBCASE("And written data will be imediately received by reader")
     {
-        auto reader = shm::Reader::open(channel_name);
+        auto reader = shm::Reader(channel_name);
 
         auto read_buffer = reader.buffer_wait();
         REQUIRE(read_buffer != nullptr);
@@ -162,8 +164,8 @@ TEST_CASE("After edition of data, writer's buffer may be written (commited)")
 
 TEST_CASE("Multiple writes (commits), without Reader's readings, are allowed")
 {
-    const auto channel = shm::Channel(channel_name, size, nreaders);
-    auto writer = shm::Writer::open(channel_name);
+    auto channel = shm::Channel(channel_name, size, nreaders);
+    auto writer = shm::Writer(channel_name);
     REQUIRE(writer.buffer_size() == size);
 
     for(auto i = 0; i < 10; ++i)
@@ -178,13 +180,13 @@ TEST_CASE("Multiple writes (commits), without Reader's readings, are allowed")
 
 TEST_CASE("Multiple writes (commits) with according Reader's readings are allowed")
 {
-    const auto channel = shm::Channel(channel_name, size, nreaders);
-    auto writer = shm::Writer::open(channel_name);
+    auto channel = shm::Channel(channel_name, size, nreaders);
+    auto writer = shm::Writer(channel_name);
     REQUIRE(writer.buffer_size() == size);
     REQUIRE_NOTHROW(writer.buffer_get());
     REQUIRE_NOTHROW(writer.buffer_write());
 
-    auto reader = shm::Reader::open(channel_name);
+    auto reader = shm::Reader(channel_name);
     for(auto i = 0; i < 10; ++i)
     {
         // After Reader's actions...

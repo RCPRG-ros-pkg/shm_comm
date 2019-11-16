@@ -250,13 +250,18 @@ int init_channel_hdr (int size, int readers, int flags, channel_hdr_t *shdata)
   }
   pthread_mutex_init (&shdata->mtx, &mutex_attr);
 
-  // set condition shared between processes
   pthread_condattr_t cond_attr;
   pthread_condattr_init(&cond_attr);
+
+  // set condition shared between processes
   if ((flags & SHM_SHARED) == SHM_SHARED)
   {
     pthread_condattr_setpshared (&cond_attr, PTHREAD_PROCESS_SHARED);
   }
+
+  // set condition use steady clock, instead of REALTIME_CLOCK (which can be adjusted)
+  pthread_condattr_setclock(&cond_attr, CLOCK_MONOTONIC);
+
   pthread_cond_init (&shdata->cond, &cond_attr);
 
   shdata->latest = -1;
@@ -678,7 +683,9 @@ int reader_buffer_wait (reader_t* re, void** buf)
   while ((re->id != -1) && (re->channel->reading[re->id] == re->channel->hdr->latest) && (re->channel->hdr->latest >= 0) && (ret == 0))
   {
     USLEEP100;
+    PRINT("reader_buffer_wait wait\n");
     ret = pthread_cond_wait (&re->channel->hdr->cond, &re->channel->hdr->mtx);
+    PRINT("reader_buffer_wait wait end\n");
   }
 
   USLEEP100;

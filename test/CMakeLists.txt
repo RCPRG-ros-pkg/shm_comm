@@ -20,6 +20,7 @@ target_link_libraries(shm_comm_test
     PRIVATE
         shm_comm
         doctest
+        pthread
 )
 
 target_compile_options(shm_comm_test

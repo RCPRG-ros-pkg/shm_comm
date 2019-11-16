@@ -38,12 +38,12 @@ const auto other_nreaders = 10;
 TEST_CASE("Readers may be opened for existing channels")
 {
     {
-        const auto channel = shm::Channel::create(channel_name, size, nreaders);
+        const auto channel = shm::Channel(channel_name, size, nreaders);
         CHECK_NOTHROW(shm::Reader::open(channel_name));
     }
 
     {
-        const auto other_channel = shm::Channel::create(other_channel_name, other_size, other_nreaders);
+        const auto other_channel = shm::Channel(other_channel_name, other_size, other_nreaders);
         CHECK_NOTHROW(shm::Reader::open(other_channel_name));
     }
 }
@@ -51,19 +51,19 @@ TEST_CASE("Readers may be opened for existing channels")
 TEST_CASE("Readers could not be opened for non-existing channels")
 {
     {
-        const auto channel = shm::Channel::create(channel_name, size, nreaders);
+        const auto channel = shm::Channel(channel_name, size, nreaders);
         CHECK_THROWS(shm::Reader::open(other_channel_name));
     }
 
     {
-        const auto other_channel = shm::Channel::create(other_channel_name, other_size, other_nreaders);
+        const auto other_channel = shm::Channel(other_channel_name, other_size, other_nreaders);
         CHECK_THROWS(shm::Reader::open(channel_name));
     }
 }
 
 TEST_CASE("There could be only opened as much readers as specified in the channel")
 {
-    const auto channel = shm::Channel::create(channel_name, size, nreaders);
+    const auto channel = shm::Channel(channel_name, size, nreaders);
 
     std::vector<shm::Reader> readers;
     for(auto i = 0; i < nreaders; ++i)
@@ -79,7 +79,7 @@ TEST_CASE("There could be only opened as much readers as specified in the channe
 
 TEST_CASE("Non-null pointer to buffer may be obtained after writer's write to that buffer")
 {
-    const auto channel = shm::Channel::create(channel_name, size, nreaders);
+    const auto channel = shm::Channel(channel_name, size, nreaders);
     auto writer = shm::Writer::open(channel_name);
     auto reader = shm::Reader::open(channel_name);
 
@@ -96,7 +96,7 @@ TEST_CASE("Non-null pointer to buffer may be obtained after writer's write to th
 
 TEST_CASE("Pointer to buffer will be not obtained, when writer didn't do any write to that buffer")
 {
-    const auto channel = shm::Channel::create(channel_name, size, nreaders);
+    const auto channel = shm::Channel(channel_name, size, nreaders);
     auto reader = shm::Reader::open(channel_name);
 
     CHECK_THROWS(reader.buffer_get());
@@ -104,7 +104,7 @@ TEST_CASE("Pointer to buffer will be not obtained, when writer didn't do any wri
 
 TEST_CASE("After Writer's write, only first Reader's buffer get is allowed")
 {
-    const auto channel = shm::Channel::create(channel_name, size, nreaders);
+    const auto channel = shm::Channel(channel_name, size, nreaders);
     auto writer = shm::Writer::open(channel_name);
     auto reader = shm::Reader::open(channel_name);
 
@@ -123,7 +123,7 @@ TEST_CASE("After Writer's write, only first Reader's buffer get is allowed")
 
 TEST_CASE("Reader could wait infinitely for write to buffer from Writer")
 {
-    const auto channel = shm::Channel::create(channel_name, size, nreaders);
+    const auto channel = shm::Channel(channel_name, size, nreaders);
     auto writer = shm::Writer::open(channel_name);
     auto reader = shm::Reader::open(channel_name);
 
@@ -200,7 +200,7 @@ TEST_CASE("Reader could wait infinitely for write to buffer from Writer")
 
 TEST_CASE("Reader could timedwait for write to buffer from Writer")
 {
-    const auto channel = shm::Channel::create(channel_name, size, nreaders);
+    const auto channel = shm::Channel(channel_name, size, nreaders);
     auto writer = shm::Writer::open(channel_name);
     auto reader = shm::Reader::open(channel_name);
     const auto TIMEOUT_SECS = 1;

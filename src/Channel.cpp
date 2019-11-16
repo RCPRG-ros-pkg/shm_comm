@@ -17,7 +17,7 @@
 
 namespace shm {
 
-Channel Channel::create(const ChannelName& name, int size, int readers, bool force)
+Channel::Channel(const ChannelName& name, int size, int readers, bool force)
 {
     assert(size > 0);
     assert(readers > 0);
@@ -31,7 +31,10 @@ Channel Channel::create(const ChannelName& name, int size, int readers, bool for
             + std::to_string(result));
     }
 
-    return Channel{name};
+    m_name.emplace();
+    strncpy(m_name->data(), name.data(), name.size());
+
+    printf("[shm] Channel '%s' initialized\n", m_name->data());
 }
 
 Channel::~Channel()
@@ -75,14 +78,6 @@ Writer Channel::open_writer()
     assert(m_name);
 
     return Writer::open(*m_name);
-}
-
-Channel::Channel(const ChannelName& name)
-{
-    m_name.emplace();
-    strncpy(m_name->data(), name.data(), name.size());
-
-    printf("[shm] Channel '%s' initialized\n", m_name->data());
 }
 
 } // namespace shm

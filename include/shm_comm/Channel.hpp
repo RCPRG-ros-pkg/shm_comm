@@ -38,7 +38,7 @@ class Writer;
  *  const auto channel_name = "ethercat_status";
  *  const auto channel_size = 1536;
  *  const auto channel_readers = 1;
- *  auto channel = shm::create(channel_name, channel_size, channel_readers);
+ *  auto channel = shm::Channel(channel_name, channel_size, channel_readers);
  *  auto reader = channel.open_reader();
  *  // ...
  *  reader.buffer_wait();
@@ -50,8 +50,9 @@ class Channel
 {
 public:
     /**
-     * @brief Creates shared memory channel
-     * @details Though number of readers are fixed to some value (@param readers),
+     * @brief Constructor
+     * @details Creates shared memory channel.
+     * Though number of readers are fixed to some value (@param readers),
      *  number of writes are not limited (infinity).
      * As long as received Channel instance exist, this channel will remain.
      *
@@ -63,7 +64,7 @@ public:
      * @param force
      * @return successfully created or valid channel
      */
-    static Channel create(const ChannelName& name, int size, int readers, bool force = false);
+    Channel(const ChannelName& name, int size, int readers, bool force = false);
 
     /**
      * @brief Destructor
@@ -116,15 +117,6 @@ public:
     Writer open_writer();
 
 private:
-    /**
-     * @brief Constructor
-     * @details Just initializes member variables
-     *
-     * @param name name of shared memory channel
-     * @param whether this is an owner of the channel
-     */
-    Channel(const ChannelName& name);
-
     ///////////////////////////////////////////////////////////////////////////////
     // Private members
     ///////////////////////////////////////////////////////////////////////////////

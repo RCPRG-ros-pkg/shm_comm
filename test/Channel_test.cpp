@@ -28,36 +28,36 @@ const auto other_readers = 10;
 
 TEST_CASE("Channels may be created")
 {
-    auto channel = shm::Channel::create(name, size, readers);
+    auto channel = shm::Channel(name, size, readers);
 
     SUBCASE("but there could be only one channel with same name")
     {
-        CHECK_THROWS(shm::Channel::create(name, size, readers));
-        CHECK_THROWS(shm::Channel::create(name, other_size, other_readers));
-        CHECK_NOTHROW(shm::Channel::create(other_name, other_size, other_readers));
+        CHECK_THROWS(shm::Channel(name, size, readers));
+        CHECK_THROWS(shm::Channel(name, other_size, other_readers));
+        CHECK_NOTHROW(shm::Channel(other_name, other_size, other_readers));
     }
 }
 
 TEST_CASE("Readers may be opened for given channel")
 {
-    auto channel = shm::Channel::create(name, size, readers);
+    auto channel = shm::Channel(name, size, readers);
     CHECK_NOTHROW(channel.open_reader());
 }
 
 TEST_CASE("Writers may be opened for given channel")
 {
-    auto channel = shm::Channel::create(name, size, readers);
+    auto channel = shm::Channel(name, size, readers);
     CHECK_NOTHROW(channel.open_writer());
 }
 
 TEST_CASE("Channels may be move-constructed")
 {
-    auto channel = shm::Channel::create(name, size, readers);
+    auto channel = shm::Channel(name, size, readers);
     auto new_channel = std::move(channel);
 
     SUBCASE("And we still could not create another with same name")
     {
-        CHECK_THROWS(shm::Channel::create(name, other_size, other_readers));
+        CHECK_THROWS(shm::Channel(name, other_size, other_readers));
     }
 
     SUBCASE("And we still can open reader for that channel")

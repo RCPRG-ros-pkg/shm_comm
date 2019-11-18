@@ -6,9 +6,7 @@
 
 #pragma once
 
-#include <experimental/optional>
-
-#include "shm_comm/common.hpp"
+#include <string>
 
 namespace shm {
 
@@ -64,7 +62,7 @@ public:
      * @param force
      * @return successfully created or valid channel
      */
-    Channel(const ChannelName& name, int size, int readers, bool force = false);
+    Channel(const char* name, int size, int readers, bool force = false);
 
     /**
      * @brief Destructor
@@ -121,7 +119,7 @@ private:
     // Private members
     ///////////////////////////////////////////////////////////////////////////////
 
-    std::experimental::optional<ChannelName> m_name;
+    std::string m_name;
 };
 
 } // namespace shm

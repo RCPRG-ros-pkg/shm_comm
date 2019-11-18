@@ -4,9 +4,12 @@
 // Contains implementation of tests for Writer class
 ///////////////////////////////////////////////////////////////////////////////
 
-#include <vector>
 #include <ctime>
 #include <cstdlib>
+
+#include <vector>
+
+#include <experimental/optional>
 
 #include <doctest.h>
 
@@ -18,11 +21,11 @@
 // Common variables
 ///////////////////////////////////////////////////////////////////////////////
 
-const auto channel_name = shm::ChannelName{"channel"};
+const auto channel_name = "channel";
 const auto size = 123;
 const auto nreaders = 5;
 
-const auto other_channel_name = shm::ChannelName{"other_channel"};
+const auto other_channel_name = "other_channel";
 const auto other_size = 321;
 const auto other_nreaders = 10;
 

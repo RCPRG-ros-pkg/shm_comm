@@ -8,19 +8,23 @@
 
 #include <cassert>
 #include <cstdio>
+#include <ctime>
 
 #include <stdexcept>
+#include <utility>
+
+#include "shm_comm/shm_channel.h"
 
 namespace shm {
 
 namespace {
 
-shm_reader_t* open_reader(const ChannelName& channel_name)
+shm_reader_t* open_reader(const char* channel_name)
 {
-    printf("[shm] Opening reader from channel '%s'\n", channel_name.data());
+    printf("[shm] Opening reader from channel '%s'\n", channel_name);
 
     shm_reader_t* reader_impl {nullptr};
-    const auto result = shm_connect_reader(channel_name.data(), &reader_impl);
+    const auto result = shm_connect_reader(channel_name, &reader_impl);
     if(result != 0)
     {
         throw std::runtime_error("Could not open shared memory reader, error: "
@@ -33,7 +37,7 @@ shm_reader_t* open_reader(const ChannelName& channel_name)
 
 } // namespace
 
-Reader::Reader(const ChannelName& channel_name)
+Reader::Reader(const char* channel_name)
     :   m_impl{open_reader(channel_name)}
 {
     printf("[shm] Reader %p initialized\n", (void*)m_impl);

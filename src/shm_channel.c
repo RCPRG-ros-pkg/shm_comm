@@ -12,8 +12,21 @@
 #include <fcntl.h>
 #include <errno.h>
 
-int shm_create_channel (const char name[NAME_LEN], int size, int readers, int force)
+#define NAME_LEN 128
+
+int shm_create_channel (const char* name, int size, int readers, int force)
 {
+  if(name == NULL)
+  {
+    return SHM_INVAL;
+  }
+
+  const size_t name_len = strlen(name);
+  if(name_len == 0 || name_len >= NAME_LEN)
+  {
+    return SHM_INVAL;
+  }
+
   if (size < 1)
   {
     return SHM_INVAL;
@@ -115,8 +128,19 @@ int shm_create_channel (const char name[NAME_LEN], int size, int readers, int fo
   return 0;
 }
 
-int shm_remove_channel (const char name[NAME_LEN])
+int shm_remove_channel (const char* name)
 {
+  if(name == NULL)
+  {
+    return SHM_INVAL;
+  }
+
+  const size_t name_len = strlen(name);
+  if(name_len == 0 || name_len >= NAME_LEN)
+  {
+    return SHM_INVAL;
+  }
+
   char shm_name_tmp[NAME_LEN + 6];
 
   strcpy (shm_name_tmp, name);
@@ -138,8 +162,19 @@ struct shm_writer
   writer_t writer;
 };
 
-int shm_connect_writer (const char name[NAME_LEN], shm_writer_t **ret)
+int shm_connect_writer (const char* name, shm_writer_t **ret)
 {
+  if(name == NULL)
+  {
+    return SHM_INVAL;
+  }
+
+  const size_t name_len = strlen(name);
+  if(name_len == 0 || name_len >= NAME_LEN)
+  {
+    return SHM_INVAL;
+  }
+
   *ret = malloc (sizeof(shm_writer_t));
 
   if ((*ret) == NULL)
@@ -295,8 +330,19 @@ struct shm_reader
   reader_t reader;
 };
 
-int shm_connect_reader (const char name[NAME_LEN], shm_reader_t **ret)
+int shm_connect_reader (const char* name, shm_reader_t **ret)
 {
+  if(name == NULL)
+  {
+    return SHM_INVAL;
+  }
+
+  const size_t name_len = strlen(name);
+  if(name_len == 0 || name_len >= NAME_LEN)
+  {
+    return SHM_INVAL;
+  }
+
   *ret = malloc (sizeof(shm_reader_t));
 
   if (*ret == NULL)

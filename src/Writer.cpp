@@ -8,20 +8,23 @@
 
 #include <cassert>
 #include <cstdio>
+#include <ctime>
 
 #include <stdexcept>
 #include <utility>
+
+#include "shm_comm/shm_channel.h"
 
 namespace shm {
 
 namespace {
 
-shm_writer_t* open_writer(const ChannelName& channel_name)
+shm_writer_t* open_writer(const char* channel_name)
 {
-    printf("[shm] Opening writer from channel '%s'\n", channel_name.data());
+    printf("[shm] Opening writer from channel '%s'\n", channel_name);
 
     shm_writer_t* writer_impl {nullptr};
-    const auto result = shm_connect_writer(channel_name.data(), &writer_impl);
+    const auto result = shm_connect_writer(channel_name, &writer_impl);
     if(result != 0)
     {
         throw std::runtime_error("Could not open shared memory writer, error: "
@@ -34,7 +37,7 @@ shm_writer_t* open_writer(const ChannelName& channel_name)
 
 } // namespace
 
-Writer::Writer(const ChannelName& channel_name)
+Writer::Writer(const char* channel_name)
     :   m_impl{open_writer(channel_name)}
 {
     printf("[shm] Writer %p initialized\n", (void*)m_impl);

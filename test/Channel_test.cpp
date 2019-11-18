@@ -14,11 +14,11 @@
 // Common variables
 ///////////////////////////////////////////////////////////////////////////////
 
-const auto name = shm::ChannelName{"channel"};
+const auto name = "channel";
 const auto size = 123;
 const auto readers = 5;
 
-const auto other_name = shm::ChannelName{"other_channel"};
+const auto other_name = "other_channel";
 const auto other_size = 321;
 const auto other_readers = 10;
 

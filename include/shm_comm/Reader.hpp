@@ -6,7 +6,14 @@
 
 #pragma once
 
-#include "shm_comm/common.hpp"
+///////////////////////////////////////////////////////////////////////////////
+// Forward declarations
+///////////////////////////////////////////////////////////////////////////////
+
+struct shm_reader;
+typedef struct shm_reader shm_reader_t;
+
+struct timespec;
 
 namespace shm {
 
@@ -62,7 +69,7 @@ public:
      * @param name name of shared memory channel to connect
      * @return shared memory reader instance
      */
-    explicit Reader(const ChannelName& channel_name);
+    explicit Reader(const char* channel_name);
 
     /**
      * @brief Destructor

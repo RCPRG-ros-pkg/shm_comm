@@ -6,7 +6,14 @@
 
 #pragma once
 
-#include "shm_comm/common.hpp"
+///////////////////////////////////////////////////////////////////////////////
+// Forward declarations
+///////////////////////////////////////////////////////////////////////////////
+
+struct shm_writer;
+typedef struct shm_writer shm_writer_t;
+
+struct timespec;
 
 namespace shm {
 
@@ -35,7 +42,7 @@ public:
      * @param name name of shared memory channel to connect
      * @return shared memory writer instance
      */
-    explicit Writer(const ChannelName& channel_name);
+    explicit Writer(const char* channel_name);
 
     /**
      * @brief Destructor

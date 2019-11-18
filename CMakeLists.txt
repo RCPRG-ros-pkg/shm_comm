@@ -22,13 +22,18 @@ option(SHM_COMM_BUILD_TESTS "Whether to build tests or not" ON)
 find_package(catkin REQUIRED)
 
 ###############################################################################
+# External dependencies
+###############################################################################
+
+add_subdirectory(extern)
+
+###############################################################################
 # Package configuration
 ###############################################################################
 
 catkin_package(
     INCLUDE_DIRS include
     LIBRARIES shm_comm
-#  DEPENDS roscpp geometry_msgs visualization_msgs message_runtime urdf Eigen orocos_kdl kdl_parser
 )
 
 ###############################################################################
@@ -74,24 +79,8 @@ set_target_properties(shm_comm
 ###############################################################################
 
 if(SHM_COMM_BUILD_EXAMPLES)
-    add_executable(shm_comm_example examples/main.c)
-    target_link_libraries(shm_comm_example PRIVATE shm_comm pthread rt)
-
-    add_executable(shm_comm_diag src/diag.c)
-    target_link_libraries(shm_comm_diag PRIVATE shm_comm pthread rt)
-
-    # add_executable(shm_comm_test src/test.c)
-    # target_link_libraries(shm_comm_test PRIVATE shm_comm pthread rt)
-
-    # add_executable(shm_comm_test2 src/test2.c)
-    # target_link_libraries(shm_comm_test2 PRIVATE shm_comm pthread rt)
+    add_subdirectory(examples)
 endif()
-
-###############################################################################
-# External dependencies
-###############################################################################
-
-add_subdirectory(extern)
 
 ###############################################################################
 # Tests definitions
@@ -106,13 +95,12 @@ endif()
 # Intallation config
 ###############################################################################
 
-install(TARGETS shm_comm shm_comm_example shm_comm_diag
-    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+install(TARGETS shm_comm
+    LIBRARY
+        DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
-install(DIRECTORY include/${PROJECT_NAME}/
+install(DIRECTORY include/shm_comm
     DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 

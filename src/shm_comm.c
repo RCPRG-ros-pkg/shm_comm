@@ -37,9 +37,11 @@
 //#define USLEEP100   usleep(100)
 #define USLEEP100
 
-
-#define PRINT(x) printf(x)
-// #define PRINT(x)
+#ifdef SHM_COMM_VERBOSE
+# define PRINT(x) printf(x)
+#else
+# define PRINT(x)
+#endif // defined(SHM_COMM_VERBOSE)
 /*
 int robust_hdr_mutex_lock(channel_hdr_t *hdr) {
   // lock hdr mutex in the safe way

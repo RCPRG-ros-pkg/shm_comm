@@ -14,6 +14,7 @@ project(shm_comm LANGUAGES CXX C)
 
 option(SHM_COMM_BUILD_EXAMPLES "Whether to build examples or not" ON)
 option(SHM_COMM_BUILD_TESTS "Whether to build tests or not" ON)
+option(SHM_COMM_VERBOSE "Whether to enable verbose messages or not" OFF)
 
 ###############################################################################
 # Project dependencies
@@ -73,6 +74,13 @@ set_target_properties(shm_comm
         CXX_EXTENSIONS ON
         CXX_STANDARD_REQUIRED ON
 )
+
+if(SHM_COMM_VERBOSE)
+    target_compile_definitions(shm_comm
+        PRIVATE
+            -DSHM_COMM_VERBOSE
+    )
+endif()
 
 ###############################################################################
 # Examples definitions

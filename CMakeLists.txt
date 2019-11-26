@@ -44,6 +44,7 @@ catkin_package(
 add_library(shm_comm
     src/shm_comm.c
     src/shm_channel.c
+    src/shm_err.c
 
     src/Channel.cpp
     src/Reader.cpp

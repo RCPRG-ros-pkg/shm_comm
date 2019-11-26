@@ -49,6 +49,14 @@ extern "C" {
 #define SHM_OLDDATA 1
 #define SHM_NODATA 2
 
+/**
+ * @brief Returns string describing specified error code returned by calls to shm_comm
+ * @param error_code error code returned by shm_comm library
+ *
+ * @return string description
+ */
+const char* shm_strerror(int error_code);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

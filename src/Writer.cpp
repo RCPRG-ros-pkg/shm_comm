@@ -27,8 +27,8 @@ shm_writer_t* open_writer(const char* channel_name)
     const auto result = shm_connect_writer(channel_name, &writer_impl);
     if(result != 0)
     {
-        throw std::runtime_error("Could not open shared memory writer, error: "
-            + std::to_string(result));
+        throw std::runtime_error("Could not open shared memory writer: "
+            + std::string(shm_strerror(result)));
     }
 
     assert(writer_impl != nullptr);
@@ -55,7 +55,7 @@ Writer::~Writer()
     const auto result = shm_release_writer(m_impl);
     if(result != 0)
     {
-        printf("[shm] Could not release writer %p\n", (void*)m_impl);
+        printf("[shm] Could not release writer: %s\n", shm_strerror(result));
     }
 }
 
@@ -102,8 +102,8 @@ void* Writer::buffer_get()
     const auto result = shm_writer_buffer_get(m_impl, &buffer);
     if(result != 0)
     {
-        throw std::runtime_error("Could not get shared memory writer buffer, error: "
-            + std::to_string(result));
+        throw std::runtime_error("Could not get shared memory writer buffer: "
+            + std::string(shm_strerror(result)));
     }
 
     assert(buffer != nullptr);
@@ -117,8 +117,8 @@ void Writer::buffer_write()
     const auto result = shm_writer_buffer_write(m_impl);
     if(result != 0)
     {
-        throw std::runtime_error("Could not write shared memory buffer, error: "
-            + std::to_string(result));
+        throw std::runtime_error("Could not write shared memory buffer: "
+            + std::string(shm_strerror(result)));
     }
 }
 

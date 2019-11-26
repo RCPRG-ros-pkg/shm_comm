@@ -27,8 +27,8 @@ shm_reader_t* open_reader(const char* channel_name)
     const auto result = shm_connect_reader(channel_name, &reader_impl);
     if(result != 0)
     {
-        throw std::runtime_error("Could not open shared memory reader, error: "
-            + std::to_string(result));
+        throw std::runtime_error("Could not open shared memory reader: "
+            + std::string(shm_strerror(result)));
     }
 
     assert(reader_impl != nullptr);
@@ -55,7 +55,7 @@ Reader::~Reader()
     const auto result = shm_release_reader(m_impl);
     if(result != 0)
     {
-        printf("[shm] Could not release reader %p\n", (void*)m_impl);
+        printf("[shm] Could not release reader: %s\n", shm_strerror(result));
     }
 }
 
@@ -104,8 +104,8 @@ void* Reader::buffer_get()
     const auto result = shm_reader_buffer_get(m_impl, &buffer);
     if(result != 0)
     {
-        throw std::runtime_error("Could not get shared memory reader buffer, error: "
-            + std::to_string(result));
+        throw std::runtime_error("Could not get shared memory reader buffer: "
+            + std::string(shm_strerror(result)));
     }
 
     assert(buffer != nullptr);
@@ -120,8 +120,8 @@ void* Reader::buffer_wait()
     const auto result = shm_reader_buffer_wait(m_impl, &buffer);
     if(result != 0)
     {
-        throw std::runtime_error("Could not wait for shared memory reader buffer, error: "
-            + std::to_string(result));
+        throw std::runtime_error("Could not wait for shared memory reader buffer: "
+            + std::string(shm_strerror(result)));
     }
 
     assert(buffer != nullptr);
@@ -136,8 +136,8 @@ void* Reader::buffer_timedwait(const timespec& abstime)
     const auto result = shm_reader_buffer_timedwait(m_impl, &abstime, &buffer);
     if(result != 0)
     {
-        throw std::runtime_error("Could not do timedwait for shared memory reader buffer, error: "
-            + std::to_string(result));
+        throw std::runtime_error("Could not do timedwait for shared memory reader buffer: "
+            + std::string(shm_strerror(result)));
     }
 
     assert(buffer != nullptr);

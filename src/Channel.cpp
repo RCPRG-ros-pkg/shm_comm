@@ -13,6 +13,7 @@
 #include <stdexcept>
 
 #include "shm_comm/shm_channel.h"
+#include "shm_comm/shm_err.h"
 #include "shm_comm/Reader.hpp"
 #include "shm_comm/Writer.hpp"
 
@@ -29,8 +30,8 @@ Channel::Channel(const char* name, int size, int readers, bool force)
     const auto result = shm_create_channel(name, size, readers, force);
     if(result != 0)
     {
-        throw std::runtime_error("Could not create shared memory channel, error: "
-            + std::to_string(result));
+        throw std::runtime_error("Could not create shared memory channel: "
+            + std::string(shm_strerror(result)));
     }
 
     m_name.assign(name);
@@ -51,7 +52,7 @@ Channel::~Channel()
     const auto result = shm_remove_channel(m_name.c_str());
     if(result != 0)
     {
-        printf("[shm] Could not remove SHM channel, error: %d\n", result);
+        printf("[shm] Could not remove SHM channel: %s\n", shm_strerror(result));
     }
 }
 

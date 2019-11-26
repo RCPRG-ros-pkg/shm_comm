@@ -461,11 +461,16 @@ int writer_buffer_write (writer_t* wr)
   USLEEP100;
   wr->index = -1;
   USLEEP100;
-  pthread_cond_broadcast (&wr->channel->hdr->cond);
-  PRINT("writer_buffer_write unlock\n");
-  USLEEP100;
-  pthread_mutex_unlock (&wr->channel->hdr->mtx);
 
+  // NOTE:
+  // It is thread safe to unlock mutex BEFORE broadcast
+  // and AFTER all data modifications. With this sequence
+  // we save reader's thread from one another sleep.
+  // After it was waken up it locks mutex, which now is arleady unlocked
+  PRINT("writer_buffer_write unlock\n");
+  pthread_mutex_unlock (&wr->channel->hdr->mtx);
+  PRINT("writer_buffer_write broadcast\n");
+  pthread_cond_broadcast (&wr->channel->hdr->cond);
 
   return 0;
 }

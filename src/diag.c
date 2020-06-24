@@ -119,7 +119,8 @@ int main(int argc, char **argv) {
 
     // check channel header
     printf("trying to lock hdr mutex...\n");
-    int ret = robust_mutex_lock(&shm_hdr->mtx);
+    //int ret = robust_mutex_lock(&shm_hdr->mtx);
+    int ret = channelLock(shm_hdr);
     if (ret != 0) {
         printf("could not lock header mutex\n");
         munmap (shm_data, CHANNEL_DATA_SIZE(shm_hdr->size, shm_hdr->max_readers));

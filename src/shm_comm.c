@@ -40,65 +40,23 @@
 
 //#define PRINT(x) printf(x)
 #define PRINT(x)
-/*
-int robust_hdr_mutex_lock(channel_hdr_t *hdr) {
-  // lock hdr mutex in the safe way
-  int lock_status = pthread_mutex_lock (hdr->mtx);
-  int acquired = FALSE;
-  int err = -18;
-  switch (lock_status)
-  {
-  case 0:
-    acquired = TRUE;
-    break;
-  case EINVAL:
-    printf("EINVAL\n");
-    err = -12;
-    break;
-  case EAGAIN:
-    printf("EAGAIN\n");
-    err = -13;
-    break;
-  case EDEADLK:
-    printf("EDEADLK\n");
-    err = -14;
-    break;
-  case EOWNERDEAD:
-    // the reader that acquired the mutex is dead
-    //TODO: make the state consistent
-    printf("EOWNERDEAD\n");
 
-    // recover the mutex
-    if (pthread_mutex_consistent(hdr->mtx) == EINVAL) {
-      printf("EOWNERDEAD, EINVAL\n");
-      err = -15;
-      break;
-    }
-    // create new condition variable
+int initCondVar(channel_hdr_t *shdata) {
   // set condition shared between processes
   pthread_condattr_t cond_attr;
   pthread_condattr_init(&cond_attr);
-  if ((flags & SHM_SHARED) == SHM_SHARED)
-  {
-    pthread_condattr_setpshared (&cond_attr, PTHREAD_PROCESS_SHARED);
-  }
+  //if ((flags & SHM_SHARED) == SHM_SHARED)
+  //{
+  // We assume the channel is shared between processes
+  pthread_condattr_setpshared (&cond_attr, PTHREAD_PROCESS_SHARED);
+  //}
   pthread_cond_init (&shdata->cond, &cond_attr);
-
-    acquired = TRUE;
-    break;
-  default:
-    printf("OTHER\n");
-    // other error
-    err = -18;
-    break;
-  }
-
-  return acquired ? 0 : err;
 }
-*/
-int robust_mutex_lock(pthread_mutex_t *mutex) {
+
+//int robust_mutex_lock(pthread_mutex_t *mutex) {
+int channelLock(channel_hdr_t *shdata) {
   // lock hdr mutex in the safe way
-  int lock_status = pthread_mutex_lock (mutex);
+  int lock_status = pthread_mutex_lock (&shdata->mtx);
   int acquired = FALSE;
   int err = -18;
   switch (lock_status)
@@ -119,15 +77,23 @@ int robust_mutex_lock(pthread_mutex_t *mutex) {
     err = -14;
     break;
   case EOWNERDEAD:
+    // self-repair of a broken robust mutex
     // the reader that acquired the mutex is dead
     //printf("**** EOWNERDEAD ****\n");
 
     // recover the mutex
-    if (pthread_mutex_consistent(mutex) == EINVAL) {
+    if (pthread_mutex_consistent(&shdata->mtx) == EINVAL) {
     //printf("**** EOWNERDEAD, EINVAL ****\n");
       err = -15;
       break;
     }
+    // Repair the cond variable
+    initCondVar(shdata);
+    // TODO: verify this:
+    //pthread_mutex_unlock (&shdata->mtx);
+    //pthread_mutex_lock(&shdata->mtx);    
+    //
+    printf("repaired channel\n");
     acquired = TRUE;
     break;
   default:
@@ -139,89 +105,6 @@ int robust_mutex_lock(pthread_mutex_t *mutex) {
 
   return acquired ? 0 : err;
 }
-
-/*
-int robust_mutex_timedlock(pthread_mutex_t *mutex, const struct timespec *restrict abs_timeout) {
-  // lock hdr mutex in the safe way
-  int lock_status = pthread_mutex_timedlock (mutex, abs_timeout);
-
-  int err = lock_status;
-  switch (lock_status)
-  {
-//  case 0:
-//    break;
-//  case EINVAL:
-//    break;
-//  case EAGAIN:
-//    break;
-//  case EDEADLK:
-//    break;
-  case EOWNERDEAD:
-    // the reader that acquired the mutex is dead
-    //TODO: make the state consistent
-    printf("timed EOWNERDEAD\n");
-
-    // recover the mutex
-    if (pthread_mutex_consistent(mutex) == EINVAL) {
-    printf("timed EOWNERDEAD, EINVAL\n");
-      break;
-    }
-    err = 0;
-    break;
-  default:
-    printf("timed OTHER\n");
-    // other error
-    break;
-  }
-
-  return err;
-}
-*/
-/*
-int robust_mutex_trylock(pthread_mutex_t *mutex) {
-  // lock hdr mutex in the safe way
-  int lock_status = pthread_mutex_trylock (mutex);
-  int acquired = FALSE;
-  int err = -18;
-  switch (lock_status)
-  {
-  case 0:
-    acquired = TRUE;
-    break;
-  case EBUSY:
-    // do nothing:
-    // other reader acquired the mutex
-    // the loop should be continued
-    break;
-  case EINVAL:
-    err = -12;
-    break;
-  case EAGAIN:
-    err = -13;
-    break;
-  case EDEADLK:
-    err = -14;
-    break;
-  case EOWNERDEAD:
-    // the reader that acquired the mutex is dead
-    //TODO: make the state consistent
-
-    // recover the mutex
-    if (pthread_mutex_consistent(mutex) == EINVAL) {
-      err = -15;
-      break;
-    }
-    acquired = TRUE;
-    break;
-  default:
-    // other error
-    err = -18;
-    break;
-  }
-
-  return acquired ? 0 : err;
-}
-*/
 
 int init_channel_hdr (int size, int readers, int flags, channel_hdr_t *shdata)
 {
@@ -242,22 +125,16 @@ int init_channel_hdr (int size, int readers, int flags, channel_hdr_t *shdata)
   // set mutex shared between processes
   pthread_mutexattr_t mutex_attr;
   pthread_mutexattr_init(&mutex_attr);
-  if ((flags & SHM_SHARED) == SHM_SHARED)
-  {
-    pthread_mutexattr_setpshared (&mutex_attr, PTHREAD_PROCESS_SHARED);
-    pthread_mutexattr_setrobust (&mutex_attr, PTHREAD_MUTEX_ROBUST);
-    pthread_mutexattr_setprotocol(&mutex_attr, PTHREAD_PRIO_INHERIT);
-  }
+  //if ((flags & SHM_SHARED) == SHM_SHARED)
+  //{
+  // We assume the channel is shared between processes
+  pthread_mutexattr_setpshared (&mutex_attr, PTHREAD_PROCESS_SHARED);
+  pthread_mutexattr_setrobust (&mutex_attr, PTHREAD_MUTEX_ROBUST);
+  pthread_mutexattr_setprotocol(&mutex_attr, PTHREAD_PRIO_INHERIT);
+  //}
   pthread_mutex_init (&shdata->mtx, &mutex_attr);
 
-  // set condition shared between processes
-  pthread_condattr_t cond_attr;
-  pthread_condattr_init(&cond_attr);
-  if ((flags & SHM_SHARED) == SHM_SHARED)
-  {
-    pthread_condattr_setpshared (&cond_attr, PTHREAD_PROCESS_SHARED);
-  }
-  pthread_cond_init (&shdata->cond, &cond_attr);
+  initCondVar(shdata);
 
   shdata->latest = -1;
   shdata->max_readers = readers;
@@ -333,8 +210,10 @@ int create_writer (channel_t* chan, writer_t* wr)
 
   wr->channel = chan;
 
-  int err = robust_mutex_lock(&wr->channel->hdr->mtx);
+  //int err = robust_mutex_lock(&wr->channel->hdr->mtx);
+  int err = channelLock(wr->channel->hdr);
   if (err != 0) {
+    printf("create_writer error: %d\n", err);
     return err;
   }
 
@@ -372,7 +251,8 @@ int writer_buffer_get (writer_t* wr, void** buf)
     return SHM_INVAL;
   }
 
-  int err = robust_mutex_lock(&wr->channel->hdr->mtx);
+  //int err = robust_mutex_lock(&wr->channel->hdr->mtx);
+  int err = channelLock(wr->channel->hdr);
   if (err != 0) {
     return err;
   }
@@ -443,12 +323,14 @@ int writer_buffer_write (writer_t* wr)
   }
 
   PRINT("writer_buffer_write before lock\n");
-  int err = robust_mutex_lock(&wr->channel->hdr->mtx);
+  //int err = robust_mutex_lock(&wr->channel->hdr->mtx);
+  int err = channelLock(wr->channel->hdr);
   if (err != 0) {
     return err;
   }
   USLEEP100;
   PRINT("writer_buffer_write lock\n");
+// hangs here
   wr->channel->hdr->latest = wr->index;
   USLEEP100;
   wr->index = -1;
@@ -494,7 +376,8 @@ int create_reader (channel_t* chan, reader_t* reader)
     ret = robust_mutex_lock(&chan->hdr->mtx);
   }
 */
-  int ret = robust_mutex_lock(&chan->hdr->mtx);
+  //int ret = robust_mutex_lock(&chan->hdr->mtx);
+  int ret = channelLock(chan->hdr);
   PRINT("create_reader lock\n");
   if (ret != 0) {
     return ret;
@@ -576,7 +459,8 @@ void release_reader (reader_t* re)
 //  pthread_mutex_unlock (&re->channel->hdr->mtx);
 
   PRINT("release_reader before lock\n");
-  int ret = robust_mutex_lock(&re->channel->hdr->mtx);
+  //int ret = robust_mutex_lock(&re->channel->hdr->mtx);
+  int ret = channelLock(re->channel->hdr);
   if (ret != 0) {
     return ret;
   }
@@ -610,7 +494,8 @@ int reader_buffer_get (reader_t* re, void** buf)
   int state = 0;
 
   PRINT("reader_buffer_get before lock\n");
-  ret = robust_mutex_lock(&re->channel->hdr->mtx);
+  //ret = robust_mutex_lock(&re->channel->hdr->mtx);
+  ret = channelLock(re->channel->hdr);
   if (ret != 0) {
     return ret;
   }
@@ -666,7 +551,8 @@ int reader_buffer_wait (reader_t* re, void** buf)
   int ret = 0;
 
   PRINT("reader_buffer_wait before lock\n");
-  ret = robust_mutex_lock(&re->channel->hdr->mtx);
+  //ret = robust_mutex_lock(&re->channel->hdr->mtx);
+  ret = channelLock(re->channel->hdr);
   if (ret != 0) {
     return ret;
   }
@@ -747,11 +633,13 @@ int reader_buffer_timedwait (reader_t* re, const struct timespec *abstime, void*
   int ret = 0;
 
   PRINT("reader_buffer_timedwait before lock\n");
-  ret = robust_mutex_lock(&re->channel->hdr->mtx);
+  //ret = robust_mutex_lock(&re->channel->hdr->mtx);
+  ret = channelLock(re->channel->hdr);
   if (ret != 0) {
     return ret;
   }
   PRINT("reader_buffer_timedwait lock\n");
+// hangs here
 
   USLEEP100;
   while ((re->id != -1) && (re->channel->reading[re->id] == re->channel->hdr->latest) && (re->channel->hdr->latest >= 0) && (ret == 0))

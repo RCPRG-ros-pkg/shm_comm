@@ -126,9 +126,11 @@ int reader_buffer_wait(reader_t* re, void** buf);
 
 int reader_buffer_timedwait(reader_t* re, const struct timespec *abstime, void** buf);
 
-int robust_mutex_lock(pthread_mutex_t *mutex);
+int channelLock(channel_hdr_t *shdata);
 
-int robust_mutex_timedlock(pthread_mutex_t *mutex, const struct timespec *restrict abs_timeout);
+//int robust_mutex_lock(pthread_mutex_t *mutex);
+
+//int robust_mutex_timedlock(pthread_mutex_t *mutex, const struct timespec *restrict abs_timeout);
 
 #ifdef __cplusplus
 };  // extern "C"
